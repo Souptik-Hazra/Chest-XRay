@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Plus, Activity, Clock, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, Plus, Activity, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils.js';
 import './layout.css';
 
@@ -9,7 +9,6 @@ export default function Sidebar({ activePage, setActivePage }) {
     { id: 'new-analysis', label: 'New Analysis', icon: Plus, badge: 'Upload' },
     { id: 'results', label: 'Analysis Results', icon: Activity },
     { id: 'history', label: 'Analysis History', icon: Clock },
-    { id: 'insights', label: 'Model Insights', icon: BarChart2 },
   ];
   return (
     <aside className="app-sidebar">
