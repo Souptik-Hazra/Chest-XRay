@@ -12,7 +12,11 @@ venv/
 node_modules/
 dist/
 
-# Generated data and artifacts
+# Runtime data and patient uploads — never commit
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/storage/artifacts/*
+!backend/storage/artifacts/.gitkeep
 *.sqlite
 *.db
 artifacts/

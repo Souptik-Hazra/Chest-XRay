@@ -7,7 +7,7 @@ from ..models.densenet import model_service, LABEL_MAPPING
 
 def generate_multi_views(img_pil: Image.Image) -> List[Tuple[str, str, Image.Image]]:
     """
-    Synthesizes 5 clinically safe views of the input radiograph for multi-view ensemble inference.
+    Creates deterministic input perturbations for sensitivity analysis; these are not independent models.
     """
     views = []
     
@@ -15,13 +15,13 @@ def generate_multi_views(img_pil: Image.Image) -> List[Tuple[str, str, Image.Ima
     views.append(("original", "Original PA View", img_pil.copy()))
     
     # 2. Resized (Bilinear interpolation standard)
-    resized = img_pil.resize((224, 224), Image.Resampling.BILINEAR).resize(img_pil.size, Image.Resampling.NEAREST)
+    resized = img_pil.resize((224, 224), Image.Resampling.BILINEAR).resize(img_pil.size, Image.Resampling.BILINEAR)
     views.append(("resized", "Resized (Bilinear Standard)", resized))
     
-    # 3. Contrast Enhanced (CLAHE-like dynamic range normalization)
+    # 3. Contrast-adjusted input (not CLAHE)
     enhancer = ImageEnhance.Contrast(img_pil)
     contrast_img = enhancer.enhance(1.35)
-    views.append(("contrast", "Contrast / CLAHE Normalized", contrast_img))
+    views.append(("contrast", "Contrast Adjusted", contrast_img))
     
     # 4. Center Cropped (focused lung field)
     w, h = img_pil.size

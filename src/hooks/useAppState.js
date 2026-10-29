@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { demoAnalysisResult } from '../data/demoData.js';
-import { analyzeImage, checkBackendHealth, getAnalysisById, getAnalysisHistory } from '../services/analysisService.js';
+import { useState, useEffect, useRef } from 'react';
+import { analyzeImage, checkBackendHealth, getAnalysisById } from '../services/analysisService.js';
 
 export function useAppState() {
   const [activePage, setActivePage] = useState('overview');
@@ -8,120 +7,72 @@ export function useAppState() {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState('');
   const [activeResultTab, setActiveResultTab] = useState('summary');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const resultPreviewRef = useRef(null);
 
-  // Check backend health on mount
   useEffect(() => {
-    checkBackendHealth()
-      .then((health) => setIsBackendConnected(Boolean(health.online)))
-      .catch(() => setIsBackendConnected(false));
+    checkBackendHealth().then((health) => setIsBackendConnected(Boolean(health.online)));
   }, []);
 
-  const loadDemoResult = async () => {
-    try {
-      const history = await getAnalysisHistory();
-      if (history && history.length > 0) {
-        const fullRecord = await getAnalysisById(history[0].id);
-        if (fullRecord) {
-          setAnalysisResult(fullRecord);
-          setActivePage('results');
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('Could not load latest real result, falling back:', e);
-    }
-    setAnalysisResult(demoAnalysisResult);
-    setActivePage('results');
-  };
+  const loadDemoResult = () => startNewAnalysis();
 
   const startNewAnalysis = () => {
+    if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
+    resultPreviewRef.current = null;
     setActivePage('new-analysis');
     setAnalysisResult(null);
+    setAnalysisError('');
     setUploadedFile(null);
+    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
     setFilePreviewUrl(null);
   };
 
   const handleSetUploadedFile = (file) => {
+    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
     setUploadedFile(file);
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setFilePreviewUrl(url);
-    } else {
-      setFilePreviewUrl(null);
-    }
+    setFilePreviewUrl(file ? URL.createObjectURL(file) : null);
+    setAnalysisError('');
   };
 
-  /**
-   * Dispatches analysis through the Node.js API service layer.
-   * If the backend is running, calls POST /api/analyze with multipart image.
-   * If backend is not yet started, gracefully falls back to simulated inference.
-   */
   const runAnalysis = async (file) => {
     setIsAnalyzing(true);
+    setAnalysisError('');
     try {
       const result = await analyzeImage(file);
-      setAnalysisResult({
-        ...result,
-        previewUrl: file ? filePreviewUrl : null,
-      });
+      if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
+      resultPreviewRef.current = file ? URL.createObjectURL(file) : null;
+      setAnalysisResult({ ...result, previewUrl: resultPreviewRef.current });
+      setActivePage('results');
     } catch (err) {
-      console.error('Analysis failed:', err);
+      setAnalysisError(err.message || 'Analysis failed. Check the backend and try again.');
+      setAnalysisResult(null);
     } finally {
       setIsAnalyzing(false);
-      setActivePage('results');
     }
   };
 
   const viewHistoryItem = async (item) => {
+    if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
+    resultPreviewRef.current = null;
     try {
-      const realRecord = await getAnalysisById(item.id);
-      if (realRecord) {
-        setAnalysisResult(realRecord);
-        setActivePage('results');
-        return;
-      }
+      const record = await getAnalysisById(item.id);
+      setAnalysisResult(record);
+      setAnalysisError('');
+      setActivePage('results');
     } catch (err) {
-      console.warn('Failed to fetch full record from backend, using fallback:', err);
+      setAnalysisError(err.message || 'Could not load this analysis record.');
     }
-    setAnalysisResult({
-      ...demoAnalysisResult,
-      id: item.id,
-      filename: item.filename,
-      timestamp: item.date,
-      predictedClass: item.predictedClass,
-      confidence: item.confidence,
-      confidenceLevel: item.confidence > 0.85 ? 'Very High' : 'High',
-      probabilities: [
-        { label: 'Normal', value: item.predictedClass === 'Normal' ? item.confidence : (1 - item.confidence) * 0.4, color: '#10b981' },
-        { label: 'Bacterial Pneumonia', value: item.predictedClass === 'Bacterial Pneumonia' ? item.confidence : (1 - item.confidence) * 0.5, color: '#ef4444' },
-        { label: 'Viral Pneumonia', value: item.predictedClass === 'Viral Pneumonia' ? item.confidence : (1 - item.confidence) * 0.5, color: '#f59e0b' },
-      ],
-      findings: {
-        ...demoAnalysisResult.findings,
-        oodDetected: Boolean(item.oodFlag),
-      },
-    });
-    setActivePage('results');
   };
 
+  useEffect(() => () => { if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current); }, []);
+
   return {
-    activePage,
-    setActivePage,
-    analysisResult,
-    setAnalysisResult,
-    uploadedFile,
-    setUploadedFile: handleSetUploadedFile,
-    filePreviewUrl,
-    isAnalyzing,
-    activeResultTab,
-    setActiveResultTab,
-    isBackendConnected,
-    loadDemoResult,
-    startNewAnalysis,
-    runDemoAnalysis: runAnalysis,
-    runAnalysis,
-    viewHistoryItem,
+    activePage, setActivePage, analysisResult, setAnalysisResult,
+    uploadedFile, setUploadedFile: handleSetUploadedFile, filePreviewUrl,
+    isAnalyzing, analysisError, activeResultTab, setActiveResultTab,
+    isBackendConnected, loadDemoResult, startNewAnalysis,
+    runAnalysis, viewHistoryItem,
   };
 }
