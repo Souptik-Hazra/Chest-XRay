@@ -1,11 +1,12 @@
 """Optional pneumonia-opacity segmentation using a pinned pretrained model.
 
-The model is separate from the project's DenseNet121 classifier. Its masks are
-approximate research outputs trained from converted bounding-box annotations.
+The separate model predicts approximate opacity masks from annotations converted
+from bounding boxes. These outputs are research visualizations, not clinical
+lesion contours or precise measurements.
 """
 import base64
-from io import BytesIO
 import logging
+from io import BytesIO
 from typing import Any
 
 import numpy as np
@@ -21,18 +22,18 @@ def build_segmentation_artifacts(
     mask_probabilities: np.ndarray,
     threshold: float = 0.5,
 ) -> dict[str, Any]:
-    """Convert a probability map into a binary mask and a red overlay."""
     probabilities = np.asarray(mask_probabilities, dtype=np.float32).squeeze()
     if probabilities.ndim != 2 or not np.isfinite(probabilities).all():
         raise ValueError("Segmentation model returned an invalid probability map.")
+    if probabilities.min() < 0 or probabilities.max() > 1:
+        raise ValueError("Segmentation model output must be probabilities in [0, 1].")
 
     binary = probabilities >= threshold
     area_percent = float(binary.mean() * 100.0)
     width, height = image.size
-    mask_image = Image.fromarray((binary.astype(np.uint8) * 255), mode="L")
+    mask_image = Image.fromarray(binary.astype(np.uint8) * 255, mode="L")
     mask_image = mask_image.resize((width, height), Image.Resampling.NEAREST)
 
-    # Bound response image size while preserving the original image's aspect ratio.
     preview = image.convert("RGB").copy()
     preview.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
     mask_preview = mask_image.resize(preview.size, Image.Resampling.NEAREST)
@@ -50,15 +51,14 @@ def build_segmentation_artifacts(
         output.save(buffer, format="PNG", optimize=True)
         return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
 
-    positive_probabilities = probabilities[binary]
-    mean_mask_score = float(positive_probabilities.mean()) if positive_probabilities.size else 0.0
+    selected = probabilities[binary]
     return {
         "status": "completed" if binary.any() else "no_region_detected",
         "target": "Pneumonia-related lung opacity",
         "maskUrl": data_url(mask_preview),
         "overlayUrl": data_url(Image.fromarray(overlay_array)),
         "areaPercent": round(area_percent, 3),
-        "meanMaskScore": round(mean_mask_score, 4),
+        "meanMaskScore": round(float(selected.mean()) if selected.size else 0.0, 4),
         "threshold": threshold,
         "imageWidth": width,
         "imageHeight": height,
@@ -78,9 +78,7 @@ class LesionSegmentationService:
         self.load_error: str | None = None
 
     def load(self) -> None:
-        if not settings.SEGMENTATION_ENABLED:
-            return
-        if self.is_loaded and self.model is not None:
+        if not settings.SEGMENTATION_ENABLED or self.is_loaded:
             return
         try:
             import torch
@@ -91,7 +89,6 @@ class LesionSegmentationService:
                 if torch.cuda.is_available() and settings.DEVICE != "cpu"
                 else "cpu"
             )
-            # The model's custom code is pinned to a reviewed repository revision.
             self.model = AutoModel.from_pretrained(
                 settings.SEGMENTATION_MODEL_ID,
                 revision=settings.SEGMENTATION_MODEL_REVISION,
@@ -118,17 +115,16 @@ class LesionSegmentationService:
         try:
             import torch
 
-            size = getattr(self.model.config, "img_size", (512, 512))
-            height, width = int(size[0]), int(size[1])
+            height, width = self.model.config.img_size
             grayscale = ImageOps.grayscale(image).resize(
-                (width, height), Image.Resampling.BILINEAR
+                (int(width), int(height)), Image.Resampling.BILINEAR
             )
             pixels = np.asarray(grayscale, dtype=np.float32)
             tensor = torch.from_numpy(pixels).unsqueeze(0).unsqueeze(0).to(self.device)
             with torch.inference_mode():
                 output = self.model(tensor)
             mask = output.get("mask") if isinstance(output, dict) else None
-            if mask is None or mask.ndim != 4 or mask.shape[0] != 1:
+            if mask is None or mask.ndim != 4 or mask.shape[0] != 1 or mask.shape[1] != 1:
                 raise ValueError("Segmentation model returned an unexpected mask shape.")
             probabilities = mask[0, 0].detach().float().cpu().numpy()
             return build_segmentation_artifacts(image, probabilities)
