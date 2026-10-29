@@ -44,11 +44,11 @@ class TestDeterministicServices(unittest.TestCase):
     def test_report_source_metadata_is_preserved_by_schema(self):
         report = ReportSchema(
             summary="Test summary",
-            reportSource="gemini_flash_lite",
+            reportSource="gemini",
             reportModel="configured-model",
         )
         data = report.model_dump()
-        self.assertEqual(data["reportSource"], "gemini_flash_lite")
+        self.assertEqual(data["reportSource"], "gemini")
         self.assertEqual(data["reportModel"], "configured-model")
 
 if __name__ == "__main__":
