@@ -57,6 +57,7 @@ def generate_clinical_report(
     filename: str
 ) -> Dict[str, str]:
     summary = _llm_summary(predicted_class, confidence, probabilities, findings)
+    report_source = "langchain" if summary else "deterministic_grounded"
     if not summary:
         summary = _grounded_summary(predicted_class, confidence, probabilities)
 
@@ -80,5 +81,5 @@ def generate_clinical_report(
             "The system does not independently establish radiographic findings and must not be used for diagnosis or treatment."
         ),
         "reviewRecommendation": review_rec,
-        "reportSource": "langchain" if os.getenv("OPENAI_API_KEY") and summary else "deterministic_grounded",
+        "reportSource": report_source,
     }
