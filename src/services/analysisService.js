@@ -26,16 +26,6 @@ export async function analyzeImage(file) {
   return normalizeAnalysisResult(await requestJson('/analyze', { method: 'POST', headers: {}, body }));
 }
 
-export async function getAnalysisHistory(params = {}) {
-  const query = new URLSearchParams(params).toString();
-  return requestJson(`/history${query ? `?${query}` : ''}`);
-}
-
-export async function getAnalysisById(id) {
-  if (!id) throw new Error('An analysis ID is required.');
-  return requestJson(`/analysis/${encodeURIComponent(id)}`);
-}
-
 function normalizeAnalysisResult(data) {
   const required = ['id', 'filename', 'timestamp', 'predictedClass', 'confidence', 'probabilities', 'findings', 'report'];
   const missing = required.filter(key => data?.[key] == null);
