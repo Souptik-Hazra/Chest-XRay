@@ -49,6 +49,30 @@ npm run dev
 
 Vite serves the frontend on port `5173` and proxies `/api` requests to FastAPI. Set `VITE_API_BASE_URL` if a different API base path is needed.
 
+## Deploy the frontend and backend
+
+### Netlify (frontend)
+
+- Connect this repository to Netlify.
+- Build command: `npm run build`
+- Publish directory: `dist`
+- Set the build environment variable `VITE_API_BASE_URL` to `https://YOUR-RENDER-SERVICE.onrender.com/api`.
+- The root `netlify.toml` provides the SPA fallback for client-side routes.
+
+### Render (backend)
+
+Create a Python web service for this repository with:
+
+- Build command: `pip install -r backend/requirements.txt`
+- Start command: `cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Health-check path: `/api/health`
+- Environment: `PYTHON_VERSION=3.11.9`, `MODEL_DEVICE=cpu`, `FRONTEND_ORIGIN=https://YOUR-SITE.netlify.app`
+- Optional `CORS_ORIGINS`: comma-separated additional Netlify production/preview origins.
+
+**Model checkpoint requirement:** `Pneumonia/` and model weights are excluded from Git. The Render service will start in degraded mode until the checkpoint is made available to it and `MODEL_PATH` points to that file. Do not commit the checkpoint or API keys. For production inference, provision the checkpoint using a private artifact store or an appropriate persistent disk and confirm `/api/model/status` reports `loaded: true`. A healthy HTTP response alone does not mean the model is ready.
+
+**Resource note:** PyTorch and torchvision make the backend substantially heavier than the static frontend. Select a Render instance with sufficient RAM for loading DenseNet121 and handling concurrent uploads. Free instances may sleep and have cold-start delays.
+
 ## Current API
 
 | Method | Endpoint | Purpose |
@@ -58,7 +82,7 @@ Vite serves the frontend on port `5173` and proxies `/api` requests to FastAPI. 
 | `GET` | `/api/model/status` | Model loading state and checkpoint path |
 | `GET` | `/api/model/info` | Architecture metadata and available baseline metrics |
 | `POST` | `/api/analyze` | Run analysis on an uploaded image |
-| `GET` | `/api/analysis/{analysis_id}/events` | Server-Sent Events for workflow progress |
+
 
 The current implementation does **not** provide database-backed history, persisted analysis retrieval, saved artifact routes, sample-image endpoints, or a model-insights dashboard API. The frontend does not return simulated predictions if the backend is unavailable.
 
@@ -72,7 +96,7 @@ The FastAPI endpoint runs a LangGraph workflow:
 4. Grad-CAM saliency generation in memory when available.
 5. Optional Gemini report generation, with a deterministic evidence-bounded fallback.
 
-The output is returned to the active browser session. Uploaded radiographs, Grad-CAM images, and analysis records are not saved to a local database or storage folder, and results are not available as saved history after refresh or restart. The backend exposes an SSE event endpoint; verify client subscription and event cleanup before relying on it for live progress display.
+The output is returned to the active browser session. Uploaded radiographs, Grad-CAM images, and analysis records are not saved to a local database or storage folder, and results are not available as saved history after refresh or restart. Workflow progress streaming is not enabled in this deployment; the analysis request returns the completed result.
 
 ## Checks
 
