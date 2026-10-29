@@ -8,7 +8,7 @@ from .api.routes import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Eagerly load model weights from read-only directory
+    # Load model once; the API remains available in degraded mode if the checkpoint is absent.
     model_service.load()
     yield
 
@@ -22,8 +22,12 @@ app = FastAPI(
 # Enable CORS for Vite frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", settings.FRONTEND_ORIGIN, "http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=True,
+    allow_origins=list(dict.fromkeys([
+        origin.strip().rstrip("/")
+        for origin in [settings.FRONTEND_ORIGIN, "http://localhost:5173", "http://127.0.0.1:5173"]
+        if origin and origin.strip()
+    ])),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
