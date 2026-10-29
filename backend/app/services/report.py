@@ -126,10 +126,13 @@ def generate_clinical_report(
     probabilities: List[Dict[str, Any]],
     findings: Dict[str, Any],
     case_id: str,
-    filename: str
+    filename: str,
+    original_image: Any = None,
+    gradcam_image_path: str | Path | None = None,
 ) -> Dict[str, str]:
     summary = _gemini_summary(
-        predicted_class, confidence, probabilities, findings, case_id, filename
+        predicted_class, confidence, probabilities, findings, case_id, filename,
+        original_image=original_image, gradcam_image_path=gradcam_image_path,
     )
     report_source = "gemini_flash_lite" if summary else "deterministic_grounded"
     if not summary:
