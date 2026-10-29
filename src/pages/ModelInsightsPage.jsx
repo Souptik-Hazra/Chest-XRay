@@ -32,21 +32,21 @@ export default function ModelInsightsPage() {
   return (
     <PageLayout>
       <PageHeader title="DenseNet121 Evaluation & Metrics" badge="VERIFIED DATA ONLY" subtitle="Metrics are shown only when supplied by a verified backend evaluation artifact." />
-      <Card padding="p-4" className="insights-card">
+      <Card padding="card-padding-lg" className="insights-card">
         <section>
           <h3 className="insights-heading">Model runtime status</h3>
-          {statusError && <p role="alert" className="insights-alert"><AlertCircle className="inline w-4 h-4 mr-1"/>{statusError}</p>}
+          {statusError && <p role="alert" className="insights-alert"><AlertCircle className="insights-inline-alert-icon"/>{statusError}</p>}
           <RuntimeStatus status={status} />
         </section>
         <section className="insights-metrics-section">
-          <h3 className="text-sm font-semibold mb-2">Evaluation metrics</h3>
+          <h3 className="insights-heading">Evaluation metrics</h3>
           {metricsError
             ? <p className="insights-muted">{metricsError}</p>
             : metrics && Object.keys(metrics).length
               ? <pre className="insights-json">{JSON.stringify(metrics,null,2)}</pre>
               : <p className="insights-muted">Unavailable. No verified evaluation artifact is exposed by the backend.</p>}
         </section>
-        <p className="insights-footnote"><Info className="inline w-3 h-3 mr-1"/>Prediction confidence is a softmax score, not necessarily a calibrated clinical probability.</p>
+        <p className="insights-footnote"><Info className="insights-inline-info-icon"/>Prediction confidence is a softmax score, not necessarily a calibrated clinical probability.</p>
       </Card>
     </PageLayout>
   );
