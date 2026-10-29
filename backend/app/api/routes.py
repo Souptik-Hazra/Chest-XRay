@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from starlette.concurrency import run_in_threadpool
 from PIL import Image
 import numpy as np
 
@@ -71,6 +72,9 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         if probe.format not in {"PNG", "JPEG"}:
             raise HTTPException(status_code=415, detail="Only PNG and JPEG images are supported.")
         probe.verify()
+        with Image.open(io.BytesIO(contents)) as dimensions:
+            if dimensions.width * dimensions.height > 40_000_000:
+                raise HTTPException(status_code=413, detail="Image dimensions exceed the 40-megapixel limit.")
         img = Image.open(io.BytesIO(contents)).convert("RGB")
     except HTTPException:
         raise
@@ -165,7 +169,7 @@ async def analyze_radiograph(image: UploadFile = File(...)):
                           for p in result["probabilities"]],
         "findings": result["findings"], "multiview": result["multiview_result"]["views"],
         "report": result["report"], "gradcamUrl": result.get("gradcam_url"),
-        "segmentation": lesion_segmentation_service.segment(img), "status": "completed",
+        "segmentation": await run_in_threadpool(lesion_segmentation_service.segment, img), "status": "completed",
     }
     return record
 
