@@ -39,7 +39,7 @@ export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, 
         </div>
         <Card padding="card-padding-none" className="results-detail-card">
           <div className="results-tabs"><TabNav tabs={RESULT_TABS.map(({id,label})=>({id,label}))} activeTab={activeTab.id} onSelectTab={setActiveResultTab} variant="underline" /></div>
-          <div className="results-panel">{activeTab.id === 'gradcam' ? <ActivePanel previewUrl={previewUrl} gradcamUrl={analysisResult.gradcamUrl} /> : activeTab.id === 'segmentation' ? <ActivePanel /> : <ActivePanel {...panelProps} />}</div>
+          <div className="results-panel">{activeTab.id === 'gradcam' ? <ActivePanel previewUrl={previewUrl} gradcamUrl={analysisResult.gradcamUrl} /> : activeTab.id === 'segmentation' ? <ActivePanel analysisResult={analysisResult} /> : <ActivePanel {...panelProps} />}</div>
           <div className="results-footer"><span>Model: DenseNet121</span><span>Research prototype</span></div>
         </Card>
       </div>

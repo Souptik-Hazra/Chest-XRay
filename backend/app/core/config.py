@@ -18,6 +18,9 @@ class Settings(BaseModel):
     FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")
     DEVICE: str = os.getenv("MODEL_DEVICE", "cpu")
+    SEGMENTATION_ENABLED: bool = os.getenv("SEGMENTATION_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    SEGMENTATION_MODEL_ID: str = os.getenv("SEGMENTATION_MODEL_ID", "ianpan/pneumonia-cxr")
+    SEGMENTATION_MODEL_REVISION: str = os.getenv("SEGMENTATION_MODEL_REVISION", "1ab2c07")
 
 
 settings = Settings()

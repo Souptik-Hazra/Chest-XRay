@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
 class ProbabilityItem(BaseModel):
@@ -26,6 +26,20 @@ class ReportSchema(BaseModel):
     reportSource: Optional[str] = None
     reportModel: Optional[str] = None
 
+class SegmentationSchema(BaseModel):
+    status: str
+    target: Optional[str] = None
+    maskUrl: Optional[str] = None
+    overlayUrl: Optional[str] = None
+    areaPercent: Optional[float] = None
+    meanMaskScore: Optional[float] = None
+    threshold: Optional[float] = None
+    imageWidth: Optional[int] = None
+    imageHeight: Optional[int] = None
+    modelId: Optional[str] = None
+    limitations: Optional[str] = None
+    message: Optional[str] = None
+
 class AnalysisResponse(BaseModel):
     id: str
     filename: str
@@ -39,6 +53,7 @@ class AnalysisResponse(BaseModel):
     multiview: Optional[List[Dict[str, Any]]] = None
     report: ReportSchema
     gradcamUrl: Optional[str] = None
+    segmentation: Optional[SegmentationSchema] = None
     status: str = "completed"
 
 class ModelInfoResponse(BaseModel):

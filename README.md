@@ -35,6 +35,8 @@ Configuration variables include:
 - `FRONTEND_ORIGIN`: frontend origin for CORS configuration
 - `GOOGLE_API_KEY` or `GEMINI_API_KEY`: optional Gemini report generation credentials
 - `CHESTX_REPORT_MODEL`: optional Gemini model override
+- `SEGMENTATION_ENABLED`: set to `true` to enable the optional pretrained opacity-segmentation model (default `false`)
+- `SEGMENTATION_MODEL_ID` and `SEGMENTATION_MODEL_REVISION`: model repository and pinned revision
 
 Keep real credentials in a local untracked `.env` file. Never commit API keys.
 
@@ -94,7 +96,8 @@ The FastAPI endpoint runs a LangGraph workflow:
 2. Aggregation of class scores and calculation of cross-view agreement.
 3. Image-quality and uncertainty heuristics.
 4. Grad-CAM saliency generation in memory when available.
-5. Optional Gemini report generation, with a deterministic evidence-bounded fallback.
+5. Optional pneumonia-opacity segmentation using the separate `ianpan/pneumonia-cxr` U-Net model (disabled by default; gracefully reported as unavailable if it fails).
+6. Optional Gemini report generation, with a deterministic evidence-bounded fallback.
 
 The output is returned to the active browser session. Uploaded radiographs, Grad-CAM images, and analysis records are not saved to a local database or storage folder, and results are not available as saved history after refresh or restart. Workflow progress streaming is not enabled; the analysis request returns the completed result.
 
@@ -116,6 +119,7 @@ Unit tests should not require private checkpoint files. Run model-checkpoint int
 - Image-quality and uncertainty outputs are heuristics, not validated clinical quality, OOD, or triage systems.
 - Transformed-input agreement uses the same checkpoint; it is not an independent ensemble or proof of improved accuracy.
 - Grad-CAM is an approximate saliency visualization, not lesion segmentation or proof of pathology.
-- No active segmentation model is included in the current workflow.
+- Optional binary opacity segmentation is available when `SEGMENTATION_ENABLED=true` using `ianpan/pneumonia-cxr`. Its training masks were derived from bounding boxes, so it predicts approximate opacity regions, not precise or clinically validated lesion contours.
+- The segmentation mask-area percentage is calculated over the model's output grid, not the lung area, and must not be interpreted as lesion burden.
 - If Gemini reporting is enabled, the original radiograph and Grad-CAM overlay may be sent to Google's Gemini API. Follow applicable consent, privacy, and data-handling requirements before processing sensitive images.
 - This research prototype must not be used as a standalone diagnostic or treatment tool.

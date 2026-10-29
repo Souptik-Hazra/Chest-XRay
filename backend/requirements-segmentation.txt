@@ -1,0 +1,6 @@
+-r requirements.txt
+# Only required when SEGMENTATION_ENABLED=true.
+transformers>=4.47,<5
+timm
+albumentations
+safetensors

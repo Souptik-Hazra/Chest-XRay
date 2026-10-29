@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from starlette.concurrency import run_in_threadpool
 from PIL import Image
 import numpy as np
 
@@ -17,6 +18,7 @@ from ..services.multiview import run_multiview_inference
 from ..services.quality_ood import check_image_quality, compute_uncertainty_metrics
 from ..services.report import generate_clinical_report
 from ..services.analysis_graph import build_analysis_graph
+from ..services.lesion_segmentation import lesion_segmentation_service
 from ..schemas.analysis import AnalysisResponse, ModelInfoResponse, HealthResponse
 
 router = APIRouter()
@@ -70,6 +72,9 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         if probe.format not in {"PNG", "JPEG"}:
             raise HTTPException(status_code=415, detail="Only PNG and JPEG images are supported.")
         probe.verify()
+        with Image.open(io.BytesIO(contents)) as dimensions:
+            if dimensions.width * dimensions.height > 40_000_000:
+                raise HTTPException(status_code=413, detail="Image dimensions exceed the 40-megapixel limit.")
         img = Image.open(io.BytesIO(contents)).convert("RGB")
     except HTTPException:
         raise
@@ -163,7 +168,8 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         "probabilities": [{"label": p["label"], "value": round(p["value"], 6), "color": p["color"]}
                           for p in result["probabilities"]],
         "findings": result["findings"], "multiview": result["multiview_result"]["views"],
-        "report": result["report"], "gradcamUrl": result.get("gradcam_url"), "status": "completed",
+        "report": result["report"], "gradcamUrl": result.get("gradcam_url"),
+        "segmentation": await run_in_threadpool(lesion_segmentation_service.segment, img), "status": "completed",
     }
     return record
 
