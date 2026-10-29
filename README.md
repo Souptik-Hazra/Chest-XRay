@@ -84,7 +84,7 @@ Create a Python web service for this repository with:
 | `POST` | `/api/analyze` | Run analysis on an uploaded image |
 
 
-The current implementation does **not** provide database-backed history, persisted analysis retrieval, saved artifact routes, sample-image endpoints, or a model-insights dashboard API. The frontend does not return simulated predictions if the backend is unavailable.
+The current implementation does **not** provide database-backed history, persisted analysis retrieval, saved artifact routes, sample-image endpoints, model-insights dashboard API, or workflow SSE streaming. The frontend does not return simulated predictions if the backend is unavailable.
 
 ## Analysis workflow
 
@@ -96,7 +96,7 @@ The FastAPI endpoint runs a LangGraph workflow:
 4. Grad-CAM saliency generation in memory when available.
 5. Optional Gemini report generation, with a deterministic evidence-bounded fallback.
 
-The output is returned to the active browser session. Uploaded radiographs, Grad-CAM images, and analysis records are not saved to a local database or storage folder, and results are not available as saved history after refresh or restart. Workflow progress streaming is not enabled in this deployment; the analysis request returns the completed result.
+The output is returned to the active browser session. Uploaded radiographs, Grad-CAM images, and analysis records are not saved to a local database or storage folder, and results are not available as saved history after refresh or restart. Workflow progress streaming is not enabled; the analysis request returns the completed result.
 
 ## Checks
 
