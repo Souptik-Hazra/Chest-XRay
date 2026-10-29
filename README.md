@@ -20,7 +20,7 @@ pip install -r backend/requirements.txt
 python backend/run.py
 ```
 
-Set `MODEL_DIR` if `Pneumonia/` is not at the repository root. Set `MODEL_PATH` to override the checkpoint. Optional variables: `MODEL_DEVICE`, `CHESTX_STORAGE_DIR`, `CHESTX_DB_PATH`, `FRONTEND_ORIGIN`, `OPENAI_API_KEY`, and `CHESTX_REPORT_MODEL`. Keep secrets in a local untracked `.env` file.
+Set `MODEL_DIR` if `Pneumonia/` is not at the repository root. Set `MODEL_PATH` to override the checkpoint. Optional variables: `MODEL_DEVICE`, `FRONTEND_ORIGIN`, `GOOGLE_API_KEY` (or `GEMINI_API_KEY`), and `CHESTX_REPORT_MODEL`. Keep secrets in a local untracked `.env` file.
 
 API defaults to `http://127.0.0.1:8000`; docs are at `/docs`.
 
@@ -49,4 +49,5 @@ Unit tests should not require private checkpoint files. Run separate checkpoint 
 - Quality and uncertainty outputs are heuristics, not validated clinical quality, OOD, or triage systems.
 - Transformed-input agreement uses the same checkpoint and is not an independent ensemble or proven accuracy gain.
 - Grad-CAM is an approximate saliency map, not lesion segmentation or proof of pathology.
-- Uploaded radiographs and metadata may be sensitive. Runtime data is ignored for future Git commits; set access, retention, and deletion policies before using real patient data.
+- Analysis requests are processed in memory. The backend does not save uploaded radiographs, Grad-CAM images, or analysis records to a local database or storage folder. Results are returned to the active browser session and are not available as saved history after a refresh or restart.
+- If Gemini report generation is enabled, the original radiograph and Grad-CAM overlay are sent to Google's Gemini API for analysis. Follow applicable consent, privacy, and data-handling requirements before using sensitive images.

@@ -1,18 +1,16 @@
 import React from 'react';
-import { Plus, ArrowRight, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Activity, Clock } from 'lucide-react';
 import { CLASSES } from '../data/demoData.js';
-import { useAnalysisHistory } from '../hooks/useAnalysisHistory.js';
-import { PageLayout, PageHeader, StatCard, Card, ClassBadge } from '../components/shared/index.js';
+import { PageLayout, PageHeader, StatCard, Card } from '../components/shared/index.js';
 import './pages.css';
 
-export default function OverviewPage({ startNewAnalysis, viewHistoryItem, setActivePage, analysisError = '' }) {
-  const { records, loading, error } = useAnalysisHistory(4);
+export default function OverviewPage({ startNewAnalysis, setActivePage, analysisResult, analysisError = '' }) {
   return (
     <PageLayout>
       <PageHeader title="Clinical Radiograph Analysis" badge="BACKEND-DRIVEN STATUS" subtitle="DenseNet121 inference, uncertainty checks and Grad-CAM when available" className="overview-header">
         <button onClick={startNewAnalysis} className="page-action"><Plus />New Analysis</button>
       </PageHeader>
-      {(analysisError || error) && <p role="alert" className="page-alert"><AlertCircle />{analysisError || error}</p>}
+      {analysisError && <p role="alert" className="page-alert">{analysisError}</p>}
       <div className="overview-grid">
         <div className="overview-column">
           <div className="overview-stats">
@@ -21,10 +19,16 @@ export default function OverviewPage({ startNewAnalysis, viewHistoryItem, setAct
             <StatCard label="OOD Benchmark" value="Unavailable" subtitle="Requires independent testing"/>
           </div>
           <Card className="overview-recent">
-            <div className="overview-section-heading"><h3><Clock />Recent Real Analyses</h3><button onClick={()=>setActivePage('history')} className="page-link">Full History <ArrowRight /></button></div>
-            <div className="overview-table-wrap">
-              {loading ? <p className="page-empty">Loading history…</p> : records.length === 0 ? <p className="page-empty">No saved analyses yet.</p> : <table className="page-table"><thead><tr><th>Case ID</th><th>Radiograph</th><th>Prediction</th><th>Score</th><th/></tr></thead><tbody>{records.map(row=><tr key={row.id}><td className="page-mono">{row.id}</td><td className="page-filename">{row.filename}</td><td><ClassBadge predictedClass={row.predictedClass}/></td><td>{(Number(row.confidence)*100).toFixed(1)}%</td><td className="page-align-right"><button onClick={()=>viewHistoryItem(row)} className="page-link">View</button></td></tr>)}</tbody></table>}
-            </div>
+            <div className="overview-section-heading"><h3><Clock />Current Session</h3></div>
+            {analysisResult ? (
+              <div className="overview-current-result">
+                <p><strong>Case ID:</strong> {analysisResult.id}</p>
+                <p><strong>Image:</strong> {analysisResult.filename}</p>
+                <p><strong>Predicted class:</strong> {analysisResult.predictedClass}</p>
+                <p><strong>Top-class score:</strong> {(Number(analysisResult.confidence) * 100).toFixed(1)}%</p>
+                <button onClick={() => setActivePage('results')} className="page-link">View current result <Activity /></button>
+              </div>
+            ) : <p className="page-empty">No analysis in this session. Results are not saved after the session ends.</p>}
           </Card>
         </div>
         <div className="overview-column">

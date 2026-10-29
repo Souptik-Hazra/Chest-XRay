@@ -20,6 +20,7 @@ class AnalysisState(TypedDict, total=False):
     findings: dict
     report: dict
     gradcam_url: str | None
+    gradcam_image: Any
     gradcam_available: bool
     gradcam_duration: float
     errors: list[str]
