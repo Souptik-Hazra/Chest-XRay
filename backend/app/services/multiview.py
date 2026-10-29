@@ -1,11 +1,9 @@
-import torch
 import numpy as np
 import base64
 from io import BytesIO
-from PIL import Image, ImageEnhance, ImageOps
-from torchvision import transforms
+from PIL import Image, ImageEnhance
 from typing import List, Dict, Any, Tuple
-from ..models.densenet import model_service, LABEL_MAPPING
+from ..models.densenet import model_service
 
 def generate_multi_views(img_pil: Image.Image) -> List[Tuple[str, str, Image.Image]]:
     """
