@@ -26,7 +26,7 @@ class TestDeterministicServices(unittest.TestCase):
 
     def test_report_has_grounded_fallback_without_key(self):
         import os
-        previous = os.environ.pop("OPENAI_API_KEY", None)
+        previous = {key: os.environ.pop(key, None) for key in ("GOOGLE_API_KEY", "GEMINI_API_KEY")}
         try:
             report = generate_clinical_report(
                 predicted_class="Normal", confidence=0.8,
@@ -36,8 +36,9 @@ class TestDeterministicServices(unittest.TestCase):
             self.assertIn("not an independently verified radiology finding", report["summary"])
             self.assertIn("not be used for diagnosis or treatment", report["limitations"])
         finally:
-            if previous is not None:
-                os.environ["OPENAI_API_KEY"] = previous
+            for key, value in previous.items():
+                if value is not None:
+                    os.environ[key] = value
 
 
 if __name__ == "__main__":
