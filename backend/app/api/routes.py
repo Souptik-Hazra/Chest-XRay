@@ -1,4 +1,5 @@
 import io
+import logging
 import time
 import uuid
 from datetime import datetime
@@ -21,6 +22,7 @@ from ..services.workflow_stream import workflow_hub, event_generator
 from ..schemas.analysis import AnalysisResponse, ModelInfoResponse, HealthResponse
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # These are reported only as historical baseline values supplied with the project.
 # Do not interpret them as proof of multi-view gains or current-run performance.
@@ -77,6 +79,7 @@ async def analyze_radiograph(image: UploadFile = File(...)):
 
     def inference_node(state):
         started = time.perf_counter()
+        workflow_hub.emit_nowait(analysis_id, "inference", "started", summary="Running DenseNet121 on transformed inputs.")
         result = run_multiview_inference(state["image"])
         return {
             "multiview_result": result,
@@ -90,6 +93,8 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         }
 
     def diagnostics_node(state):
+        workflow_hub.emit_nowait(analysis_id, "inference", "completed", summary="Transformed-input inference completed.")
+        workflow_hub.emit_nowait(analysis_id, "diagnostics", "started", summary="Computing image and uncertainty heuristics.")
         quality = check_image_quality(state["image"])
         result = state["multiview_result"]
         probs = [result["consensusProbabilities"].get(c, 0.0) for c in model_service.display_classes]
@@ -105,10 +110,12 @@ async def analyze_radiograph(image: UploadFile = File(...)):
             "meanLuminance": quality["meanLuminance"],
             "oodMethod": "uncertainty_heuristic_not_validated_ood_detector",
         }
+        workflow_hub.emit_nowait(analysis_id, "diagnostics", "completed", summary="Heuristic diagnostics completed.")
         return {"quality": quality, "uncertainty": uncertainty, "findings": findings}
 
     def gradcam_node(state):
         started = time.perf_counter()
+        workflow_hub.emit_nowait(analysis_id, "gradcam", "started", summary="Generating Grad-CAM saliency map.")
         tensor = model_service.preprocess_transform(state["image"]).unsqueeze(0).to(model_service.device)
         cam = GradCAM(model_service.model)
         try:
@@ -116,28 +123,35 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         finally:
             cam.remove_hooks()
         if not np.isfinite(heatmap).all() or float(np.max(heatmap)) <= 0:
+            workflow_hub.emit_nowait(analysis_id, "gradcam", "completed", summary="Grad-CAM was unavailable for this input.")
             return {"gradcam_url": None, "gradcam_available": False,
                     "gradcam_duration": round(time.perf_counter() - started, 3)}
         overlay = GradCAM.overlay_heatmap(np.array(state["image"].resize((224, 224))), heatmap, alpha=0.45)
         artifact = f"gradcam_{analysis_id}.png"
         Image.fromarray(overlay).save(settings.GRADCAM_DIR / artifact)
+        duration = round(time.perf_counter() - started, 3)
+        workflow_hub.emit_nowait(analysis_id, "gradcam", "completed", duration=duration, summary="Grad-CAM artifact generated.")
         return {"gradcam_url": f"/api/artifacts/{artifact}", "gradcam_available": True,
-                "gradcam_duration": round(time.perf_counter() - started, 3)}
+                "gradcam_duration": duration}
 
     def report_node(state):
+        workflow_hub.emit_nowait(analysis_id, "report", "started", summary="Preparing evidence-bounded report.")
         findings = {**state["findings"], "gradcamAvailable": state.get("gradcam_available", False)}
         report = generate_clinical_report(
             predicted_class=state["predicted_class"], confidence=state["confidence"],
             probabilities=state["probabilities"], findings=findings,
             case_id=analysis_id, filename=filename
         )
+        workflow_hub.emit_nowait(analysis_id, "report", "completed", summary="Report generation completed.")
         return {"findings": findings, "report": report}
 
     graph = build_analysis_graph(inference_node, diagnostics_node, gradcam_node, report_node)
     try:
         result = graph.invoke({"image": img})
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Analysis workflow failed: {type(exc).__name__}: {exc}") from exc
+        logger.exception("Analysis workflow failed for %s", analysis_id)
+        workflow_hub.emit_nowait(analysis_id, "report", "failed", summary="Analysis workflow failed.")
+        raise HTTPException(status_code=500, detail="Analysis workflow failed. Check server logs for details.") from exc
 
     confidence = float(result["confidence"])
     confidence_level = "High" if confidence >= 0.70 else "Moderate"
@@ -191,29 +205,3 @@ async def get_artifact(filename: str):
         raise HTTPException(status_code=404, detail="Artifact not found.")
     return FileResponse(str(path), media_type="image/png")
 
-
-@router.get("/samples")
-async def list_sample_images():
-    test_dir = Path(settings.MODEL_DIR) / "data" / "processed" / "test"
-    samples = []
-    if test_dir.exists():
-        for category in ["Normal", "Bacterial_Pneumonia", "Viral_Pneumonia"]:
-            folder = test_dir / category
-            if folder.is_dir():
-                for item in sorted(folder.iterdir()):
-                    if item.is_file() and item.suffix.lower() in {".jpg", ".jpeg", ".png"}:
-                        samples.append({"category": category, "displayCategory": category.replace("_", " "),
-                                        "filename": item.name, "url": f"/api/samples/{category}/{item.name}"})
-    return samples
-
-
-@router.get("/samples/{category}/{filename}")
-async def get_sample_image(category: str, filename: str):
-    if category not in {"Normal", "Bacterial_Pneumonia", "Viral_Pneumonia"}:
-        raise HTTPException(status_code=404, detail="Sample category not found.")
-    test_dir = (Path(settings.MODEL_DIR) / "data" / "processed" / "test").resolve()
-    path = (test_dir / category / filename).resolve()
-    if not path.is_relative_to(test_dir) or not path.is_file():
-        raise HTTPException(status_code=404, detail="Sample not found.")
-    media_type = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
-    return FileResponse(str(path), media_type=media_type)
