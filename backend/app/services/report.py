@@ -134,7 +134,7 @@ def generate_clinical_report(
         predicted_class, confidence, probabilities, findings, case_id, filename,
         original_image=original_image, gradcam_image=gradcam_image,
     )
-    report_source = "gemini_flash_lite" if summary else "deterministic_grounded"
+    report_source = "gemini" if summary else "deterministic_grounded"
     if not summary:
         summary = _grounded_summary(predicted_class, confidence, probabilities, findings)
 
@@ -159,5 +159,5 @@ def generate_clinical_report(
         ),
         "reviewRecommendation": review_rec,
         "reportSource": report_source,
-        "reportModel": os.getenv("CHESTX_REPORT_MODEL", "gemini-3.5-flash-lite") if summary and report_source == "gemini_flash_lite" else "deterministic",
+        "reportModel": os.getenv("CHESTX_REPORT_MODEL", "gemini-3.5-flash-lite") if summary and report_source == "gemini" else "deterministic",
     }
