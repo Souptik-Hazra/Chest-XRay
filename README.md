@@ -1,16 +1,52 @@
-# React + Vite
+# ChestX AI
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Research prototype using a fine-tuned DenseNet121 checkpoint to classify uploaded chest radiographs as **Normal**, **Bacterial Pneumonia**, or **Viral Pneumonia**. It is not a medical device and must not be used for diagnosis, triage, or treatment decisions.
 
-Currently, two official plugins are available:
+## Requirements
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js compatible with the Vite version in `package.json`
+- Python and PyTorch/torchvision versions compatible with backend requirements
+- Existing checkpoint and matching files in local `Pneumonia/`; weights are intentionally not included in this repository
 
-## React Compiler
+## Backend
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+From the repository root:
 
-## Expanding the Oxlint configuration
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+pip install -r backend/requirements.txt
+python backend/run.py
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Set `MODEL_DIR` if `Pneumonia/` is not at the repository root. Set `MODEL_PATH` to override the checkpoint. Optional variables: `MODEL_DEVICE`, `CHESTX_STORAGE_DIR`, `CHESTX_DB_PATH`, `FRONTEND_ORIGIN`, `OPENAI_API_KEY`, and `CHESTX_REPORT_MODEL`. Keep secrets in a local untracked `.env` file.
+
+API defaults to `http://127.0.0.1:8000`; docs are at `/docs`.
+
+## Frontend
+
+```bash
+npm install
+npm run dev
+```
+
+Vite proxies `/api` to FastAPI. Set `VITE_API_BASE_URL` for a different API origin.
+
+## Checks
+
+```bash
+npm run build
+npm run lint
+python -m unittest discover -s backend/tests
+```
+
+Unit tests should not require private checkpoint files. Run separate checkpoint integration tests on a machine with the local model available.
+
+## Limitations and data handling
+
+- Softmax values are model scores, not calibrated clinical probabilities.
+- Quality and uncertainty outputs are heuristics, not validated clinical quality, OOD, or triage systems.
+- Transformed-input agreement uses the same checkpoint and is not an independent ensemble or proven accuracy gain.
+- Grad-CAM is an approximate saliency map, not lesion segmentation or proof of pathology.
+- Uploaded radiographs and metadata may be sensitive. Runtime data is ignored for future Git commits; set access, retention, and deletion policies before using real patient data.
