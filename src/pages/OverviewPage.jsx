@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, ArrowRight, Clock, AlertCircle } from 'lucide-react';
-import { CLASSES, CLASS_COLORS } from '../data/demoData.js';
+import { CLASSES } from '../data/demoData.js';
 import { useAnalysisHistory } from '../hooks/useAnalysisHistory.js';
 import { PageLayout, PageHeader, StatCard, Card, ClassBadge } from '../components/shared/index.js';
 import './pages.css';
@@ -28,7 +28,7 @@ export default function OverviewPage({ startNewAnalysis, viewHistoryItem, setAct
           </Card>
         </div>
         <div className="overview-column">
-          <Card><h3 className="page-card-title">Classifier Output Classes</h3><div className="overview-class-grid">{CLASSES.map(cls=><div key={cls} className="overview-class-item"><span className="overview-class-dot" style={{'--class-color':CLASS_COLORS[cls]}}/><span>{cls}</span></div>)}</div></Card>
+          <Card><h3 className="page-card-title">Classifier Output Classes</h3><div className="overview-class-grid">{CLASSES.map(cls=><div key={cls} className="overview-class-item"><span className={`overview-class-dot ${cls === 'Normal' ? 'is-normal' : cls === 'Bacterial Pneumonia' ? 'is-bacterial' : 'is-viral'}`}/><span>{cls}</span></div>)}</div></Card>
           <Card className="overview-workflow"><h3 className="page-card-title">Workflow Execution</h3><p className="page-muted">Execution steps will be displayed from the real workflow event stream.</p></Card>
         </div>
       </div>
