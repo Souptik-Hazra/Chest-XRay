@@ -61,11 +61,12 @@ async def analyze_radiograph(image: UploadFile = File(...)):
     filename = Path(image.filename or "radiograph").name
     if not filename:
         filename = "radiograph"
-    contents = await image.read()
+    max_upload_bytes = 20 * 1024 * 1024
+    contents = await image.read(max_upload_bytes + 1)
     if not contents:
         raise HTTPException(status_code=400, detail="Uploaded image is empty.")
-    if len(contents) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File size exceeds 20MB limit.")
+    if len(contents) > max_upload_bytes:
+        raise HTTPException(status_code=413, detail="File size exceeds 20 MiB limit.")
     try:
         img = Image.open(io.BytesIO(contents))
         img.verify()
@@ -115,9 +116,10 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         started = time.perf_counter()
         workflow_hub.emit_nowait(analysis_id, "gradcam", "started", summary="Generating Grad-CAM saliency map.")
         tensor = model_service.preprocess_transform(state["image"]).unsqueeze(0).to(model_service.device)
+        target_idx = model_service.display_classes.index(state["predicted_class"])
         cam = GradCAM(model_service.model)
         try:
-            heatmap, pred_idx, _ = cam.generate_heatmap(tensor)
+            heatmap, pred_idx, _ = cam.generate_heatmap(tensor, target_class=target_idx)
         finally:
             cam.remove_hooks()
         if not np.isfinite(heatmap).all() or float(np.max(heatmap)) <= 0:
@@ -125,7 +127,7 @@ async def analyze_radiograph(image: UploadFile = File(...)):
             return {"gradcam_url": None, "gradcam_available": False,
                     "gradcam_duration": round(time.perf_counter() - started, 3)}
         overlay = Image.fromarray(
-            GradCAM.overlay_heatmap(np.array(state["image"].resize((224, 224))), heatmap, alpha=0.45)
+            GradCAM.overlay_heatmap(np.array(state["image"].convert("RGB")), heatmap, alpha=0.45)
         )
         buffer = io.BytesIO()
         overlay.save(buffer, format="PNG")
