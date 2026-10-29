@@ -16,6 +16,7 @@ class Settings(BaseModel):
     HOST: str = os.getenv("API_HOST", "127.0.0.1")
     PORT: int = int(os.getenv("API_PORT", "8000"))
     FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")
     DEVICE: str = os.getenv("MODEL_DEVICE", "cpu")
 
 
