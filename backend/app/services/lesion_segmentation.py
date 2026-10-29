@@ -6,6 +6,7 @@ lesion contours or precise measurements.
 """
 import base64
 import logging
+import threading
 from io import BytesIO
 from typing import Any
 
@@ -82,6 +83,7 @@ class LesionSegmentationService:
         self.device = None
         self.is_loaded = False
         self.load_error: str | None = None
+        self._inference_lock = threading.Lock()
 
     def load(self) -> None:
         if not settings.SEGMENTATION_ENABLED or self.is_loaded:
@@ -143,7 +145,8 @@ class LesionSegmentationService:
             )
             pixels = np.asarray(grayscale, dtype=np.float32)
             tensor = torch.from_numpy(pixels).unsqueeze(0).unsqueeze(0).to(self.device)
-            with torch.inference_mode():
+            # Serialize inference to limit peak memory and avoid concurrent model calls.
+            with self._inference_lock, torch.inference_mode():
                 output = self.model(tensor)
             mask = output.get("mask") if isinstance(output, dict) else None
             if (
