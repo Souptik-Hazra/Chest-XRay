@@ -63,11 +63,12 @@ class ModelService:
     def get_instance(cls) -> 'ModelService':
         if cls._instance is None:
             cls._instance = cls()
-            cls._instance.load()
         return cls._instance
 
     def load(self):
-        """Loads trained weights from read-only checkpoint."""
+        """Loads trained weights from the configured checkpoint once."""
+        if self.is_loaded and self.model is not None:
+            return
         try:
             if not os.path.exists(self.checkpoint_path):
                 raise FileNotFoundError(f"Model checkpoint not found at: {self.checkpoint_path}")
