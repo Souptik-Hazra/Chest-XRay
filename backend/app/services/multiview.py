@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import base64
+from io import BytesIO
 from PIL import Image, ImageEnhance, ImageOps
 from torchvision import transforms
 from typing import List, Dict, Any, Tuple
@@ -57,8 +59,13 @@ def run_multiview_inference(img_pil: Image.Image) -> Dict[str, Any]:
         all_probs.append(probs)
         pred_class = display_classes[pred_idx]
         
+        preview_buffer = BytesIO()
+        v_img.convert("RGB").save(preview_buffer, format="JPEG", quality=72, optimize=True)
+        preview_url = "data:image/jpeg;base64," + base64.b64encode(preview_buffer.getvalue()).decode("ascii")
+
         view_results.append({
             "id": view_id,
+            "previewUrl": preview_url,
             "name": view_name,
             "predictedClass": pred_class,
             "confidence": float(probs[pred_idx]),
