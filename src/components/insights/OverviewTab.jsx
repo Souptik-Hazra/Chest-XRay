@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layers, CheckCircle2, Target } from 'lucide-react';
 import { StatCard, Callout } from '../shared/index.js';
+import './insights.css';
 import { demoMetrics } from '../../data/demoData.js';
 import { ARCHITECTURE_SPECS, TEST_COHORTS } from '../../data/insightsData.js';
 
