@@ -4,12 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings
 from .models.densenet import model_service
+from .services.lesion_segmentation import lesion_segmentation_service
 from .api.routes import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load model once; the API remains available in degraded mode if the checkpoint is absent.
     model_service.load()
+    lesion_segmentation_service.load()
     yield
 
 app = FastAPI(
@@ -19,7 +20,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for Vite frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(dict.fromkeys(
@@ -37,7 +37,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount API routes
 app.include_router(router, prefix=settings.API_V1_STR)
 
 @app.get("/")
