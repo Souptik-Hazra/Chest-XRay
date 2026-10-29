@@ -2,8 +2,8 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 async function requestJson(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { Accept: 'application/json', ...options.headers },
     ...options,
+    headers: { Accept: 'application/json', ...options.headers },
   });
   if (!response.ok) {
     const detail = await response.text();
@@ -13,13 +13,13 @@ async function requestJson(path, options = {}) {
 }
 
 export async function checkBackendHealth() {
-  try { return { online: true, ...await requestJson('/health') }; }
-  catch (error) { return { online: false, error: error.message }; }
+  try { const health = await requestJson('/health'); return { online: health.modelLoaded === true, apiOnline: true, ...health }; }
+  catch (error) { return { online: false, apiOnline: false, error: error.message }; }
 }
 
 export async function analyzeImage(file) {
-  if (!(file instanceof File) || !file.size || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-    throw new Error('Choose a non-empty PNG, JPEG, or WebP image before analysis.');
+  if (!(file instanceof File) || !file.size || !['image/png', 'image/jpeg'].includes(file.type)) {
+    throw new Error('Choose a non-empty PNG or JPEG image before analysis.');
   }
   const body = new FormData();
   body.append('image', file);
