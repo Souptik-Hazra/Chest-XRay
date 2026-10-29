@@ -14,8 +14,8 @@ export default function MultiViewPanel({ analysisResult = null, previewUrl = nul
       const metadata = PREPARATION_VIEWS.find(item => item.id === view.id);
       return <div key={view.id} className="multiview-card">
         <div className="multiview-card__heading"><span>{metadata?.name || view.name || view.id}</span><span>{typeof view.confidence === 'number' ? (view.confidence * 100).toFixed(1) + '%' : 'Unavailable'}</span></div>
-        {previewUrl && <img src={previewUrl} alt="Uploaded radiograph"/>}
-        <p>Predicted class: {view.predictedClass || 'Unavailable'}</p><p>Input variant: {view.name || view.id}</p>
+        {(view.previewUrl || previewUrl) && <img src={view.previewUrl || previewUrl} alt={`${view.name || view.id} inference input preview`}/>}
+        <p>Predicted class: {view.predictedClass || 'Unavailable'}</p><p>Inference input: {view.name || view.id}</p>
       </div>;
     })}</div>
     <Callout icon={Info} variant="info">Aggregate output: <strong>{result.predictedClass || 'Unavailable'}</strong>{typeof result.confidence === 'number' ? ' (' + (result.confidence * 100).toFixed(1) + '% softmax score)' : ''}. Agreement across transformed inputs is a sensitivity diagnostic, not a clinical reliability guarantee.</Callout>
