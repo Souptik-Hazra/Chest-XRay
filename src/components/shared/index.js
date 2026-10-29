@@ -1,5 +1,4 @@
 export { default as Card } from './Card.jsx';
-export { default as StatCard } from './StatCard.jsx';
 export { default as Callout } from './Callout.jsx';
 export { default as PageHeader } from './PageHeader.jsx';
 export { default as ClassBadge } from './ClassBadge.jsx';
