@@ -27,9 +27,11 @@ def build_segmentation_artifacts(
     if not np.isfinite(threshold) or not 0.0 <= threshold <= 1.0:
         raise ValueError("Segmentation threshold must be between 0 and 1.")
 
-    probabilities = np.asarray(mask_probabilities, dtype=np.float32).squeeze()
+    probabilities = np.asarray(mask_probabilities, dtype=np.float32)
+    # This artifact builder accepts a single 2D map only. Do not squeeze away
+    # batch/channel dimensions, because that silently accepts malformed outputs.
     if probabilities.ndim != 2 or probabilities.size == 0 or not np.isfinite(probabilities).all():
-        raise ValueError("Segmentation model returned an invalid probability map.")
+        raise ValueError("Segmentation model returned an invalid 2D probability map.")
     if probabilities.min() < 0 or probabilities.max() > 1:
         raise ValueError("Segmentation model output must be probabilities in [0, 1].")
     if image.width < 1 or image.height < 1:
