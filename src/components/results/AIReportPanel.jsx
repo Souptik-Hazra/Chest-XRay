@@ -96,7 +96,7 @@ export default function AIReportPanel({ analysisResult }) {
     URL.revokeObjectURL(url);
   };
 
-  const isGemini = report.reportSource === 'gemini_flash_lite';
+  const isGemini = report.reportSource === 'gemini';
   const sourceLabel = isGemini
     ? `Gemini ${report.reportModel || 'Flash-Lite'} · LangChain`
     : 'Evidence-bounded summary';
