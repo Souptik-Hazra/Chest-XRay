@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { analyzeImage, checkBackendHealth, getAnalysisById } from '../services/analysisService.js';
 
 export function useAppState() {
@@ -10,17 +10,17 @@ export function useAppState() {
   const [analysisError, setAnalysisError] = useState('');
   const [activeResultTab, setActiveResultTab] = useState('summary');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const resultPreviewRef = useRef(null);
 
   useEffect(() => {
     checkBackendHealth().then((health) => setIsBackendConnected(Boolean(health.online)));
   }, []);
 
-  const loadDemoResult = async () => {
-    setAnalysisError('Demo results were removed. Run a real analysis or select a record from the database history.');
-    setActivePage('results');
-  };
+  const loadDemoResult = () => startNewAnalysis();
 
   const startNewAnalysis = () => {
+    if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
+    resultPreviewRef.current = null;
     setActivePage('new-analysis');
     setAnalysisResult(null);
     setAnalysisError('');
@@ -41,7 +41,9 @@ export function useAppState() {
     setAnalysisError('');
     try {
       const result = await analyzeImage(file);
-      setAnalysisResult({ ...result, previewUrl: file ? URL.createObjectURL(file) : null });
+      if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
+      resultPreviewRef.current = file ? URL.createObjectURL(file) : null;
+      setAnalysisResult({ ...result, previewUrl: resultPreviewRef.current });
       setActivePage('results');
     } catch (err) {
       setAnalysisError(err.message || 'Analysis failed. Check the backend and try again.');
@@ -52,6 +54,8 @@ export function useAppState() {
   };
 
   const viewHistoryItem = async (item) => {
+    if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
+    resultPreviewRef.current = null;
     try {
       const record = await getAnalysisById(item.id);
       setAnalysisResult(record);
@@ -62,11 +66,13 @@ export function useAppState() {
     }
   };
 
+  useEffect(() => () => { if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current); }, []);
+
   return {
     activePage, setActivePage, analysisResult, setAnalysisResult,
     uploadedFile, setUploadedFile: handleSetUploadedFile, filePreviewUrl,
     isAnalyzing, analysisError, activeResultTab, setActiveResultTab,
     isBackendConnected, loadDemoResult, startNewAnalysis,
-    runDemoAnalysis: runAnalysis, runAnalysis, viewHistoryItem,
+    runAnalysis, viewHistoryItem,
   };
 }
