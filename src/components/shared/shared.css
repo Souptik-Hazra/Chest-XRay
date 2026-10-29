@@ -19,3 +19,5 @@
 .stat-card--indigo{border-color:#312e81!important;background:#1e1b4b66!important}.stat-card--green{border-color:#064e3b!important;background:#064e3b33!important}.dark .stat-card__value--slate{color:#cbd5e1}
 
 .card-padding-lg{padding:16px}.card-padding-none{padding:0}.class-badge--compact{padding:2px 10px;font-size:12px}
+
+.card-padding-md{padding:12px}.card-padding-compact{padding:10px;gap:8px}.card-padding-lg-gap{padding:16px;gap:12px}
