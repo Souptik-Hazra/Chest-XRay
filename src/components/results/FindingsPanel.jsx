@@ -35,7 +35,7 @@ export default function FindingsPanel({ analysisResult }) {
             ) : (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-950/70 text-emerald-300 border border-emerald-800 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                DenseNet121 Inferred (Live)
+                DenseNet121 Inference
               </span>
             )}
           </div>
@@ -68,7 +68,7 @@ export default function FindingsPanel({ analysisResult }) {
       {/* Probability Bars */}
       <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
         <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2.5">
-          Class Probabilities (DenseNet121 Ensemble)
+          Class Probabilities (DenseNet121)
         </h4>
         <ProbabilityBars probabilities={probabilities} predictedClass={predictedClass} />
       </div>
@@ -82,42 +82,42 @@ export default function FindingsPanel({ analysisResult }) {
           <div className="p-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
             <div className="text-[10px] text-slate-500 dark:text-slate-400">View Agreement</div>
             <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {findings.crossViewAgreement || 'High'}
+              {findings.crossViewAgreement ?? 'Unavailable'}
             </div>
           </div>
 
           <div className="p-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
             <div className="text-[10px] text-slate-500 dark:text-slate-400">Entropy</div>
             <div className="text-xs font-bold text-slate-800 dark:text-slate-200 font-mono mt-0.5">
-              {findings.predictionEntropy ?? 0.42}
+              {findings.predictionEntropy ?? 'Unavailable'}
             </div>
           </div>
 
           <div className="p-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
             <div className="text-[10px] text-slate-500 dark:text-slate-400">Confidence Margin</div>
             <div className="text-xs font-bold text-slate-800 dark:text-slate-200 font-mono mt-0.5">
-              +{(findings.confidenceMargin ? findings.confidenceMargin * 100 : 58).toFixed(0)}%
+              +{typeof findings.confidenceMargin === 'number' ? `${(findings.confidenceMargin * 100).toFixed(0)}%` : 'Unavailable'}
             </div>
           </div>
 
           <div className="p-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
             <div className="text-[10px] text-slate-500 dark:text-slate-400">Image Quality</div>
             <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {findings.imageQuality || 'Good'}
+              {findings.imageQuality ?? 'Unavailable'}
             </div>
           </div>
 
           <div className="p-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
             <div className="text-[10px] text-slate-500 dark:text-slate-400">OOD Detected</div>
             <div className={`text-xs font-bold mt-0.5 ${findings.oodDetected ? 'text-amber-500' : 'text-slate-700 dark:text-slate-300'}`}>
-              {findings.oodDetected ? 'Yes (Check)' : 'No (In-Dist)'}
+              {typeof findings.oodDetected === 'boolean' ? (findings.oodDetected ? 'Flag raised' : 'No flag') : 'Unavailable'}
             </div>
           </div>
 
           <div className="p-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
             <div className="text-[10px] text-slate-500 dark:text-slate-400">Review Status</div>
             <div className={`text-xs font-bold mt-0.5 ${findings.reviewNeeded ? 'text-amber-500' : 'text-slate-700 dark:text-slate-300'}`}>
-              {findings.reviewNeeded ? 'Priority' : 'Routine'}
+              {typeof findings.reviewNeeded === 'boolean' ? (findings.reviewNeeded ? 'Review suggested' : 'No heuristic flag') : 'Unavailable'}
             </div>
           </div>
         </div>
