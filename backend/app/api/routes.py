@@ -164,7 +164,8 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         "probabilities": [{"label": p["label"], "value": round(p["value"], 6), "color": p["color"]}
                           for p in result["probabilities"]],
         "findings": result["findings"], "multiview": result["multiview_result"]["views"],
-        "report": result["report"], "gradcamUrl": result.get("gradcam_url"),\n        "segmentation": lesion_segmentation_service.segment(img), "status": "completed",
+        "report": result["report"], "gradcamUrl": result.get("gradcam_url"),
+        "segmentation": lesion_segmentation_service.segment(img), "status": "completed",
     }
     return record
 
