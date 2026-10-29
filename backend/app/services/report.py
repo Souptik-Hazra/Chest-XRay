@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, List
+import base64
+from io import BytesIO
 import os
 
 from dotenv import load_dotenv
@@ -34,63 +36,78 @@ def _gemini_summary(
     findings: Dict[str, Any],
     case_id: str,
     filename: str,
+    original_image: Any = None,
+    gradcam_image_path: str | Path | None = None,
 ) -> str | None:
-    """Generate an evidence-bounded narrative with LangChain and Gemini Flash-Lite."""
+    """Generate an evidence-bounded report from metrics and optional X-ray/Grad-CAM images."""
     if not (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
         return None
 
     try:
-        from langchain_core.prompts import ChatPromptTemplate
+        from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         model_name = os.getenv("CHESTX_REPORT_MODEL", "gemini-3.5-flash-lite")
-        prompt = ChatPromptTemplate.from_messages([
-            (
-                "system",
-                "You write clear, cautious research reports about machine-learning outputs for chest X-ray research. "
-                "You are NOT a radiologist and have not seen the radiograph. Never diagnose, describe visual findings, "
-                "infer a disease beyond repeating the classifier's label, recommend treatment, or claim Grad-CAM proves "
-                "pathology. Use only the supplied metadata. Distinguish model scores from calibrated clinical probabilities. "
-                "Mention missing metrics as unavailable. Produce a useful report with these headings: Model output, "
-                "Supporting metrics, Interpretation and limitations, Review note. Keep it concise and factual. "
-                "Do not change or reinterpret the predicted class."
-            ),
-            (
-                "human",
-                "Create a report for this analysis record.\n"
-                "Case ID: {case_id}\nInput filename: {filename}\n"
-                "Classifier: DenseNet121 with multi-view mean-probability aggregation\n"
-                "Predicted class: {predicted_class}\nTop class score (0-1): {confidence}\n"
-                "Class scores (0-1): {probabilities}\n"
-                "Cross-view agreement: {agreement}\nPrediction entropy: {entropy}\n"
-                "Confidence margin: {margin}\nImage quality heuristic: {quality}\n"
-                "Uncertainty/OOD heuristic flag: {ood}\n"
-                "Grad-CAM artifact available: {gradcam}\nReview heuristic: {review}\n"
-            ),
-        ])
+        system_prompt = (
+            "You write cautious, evidence-bounded research reports for chest X-ray machine-learning experiments. "
+            "You may inspect the supplied X-ray and Grad-CAM overlay for a technical description, but you are not a "
+            "radiologist and must not provide a diagnosis, treatment advice, or definitive clinical interpretation. "
+            "Do not infer a disease from the heatmap. Describe the Grad-CAM only as a model-saliency visualization; "
+            "it is not a lesion segmentation or proof of pathology. Separate image observations from DenseNet121's "
+            "predicted label and numeric metrics. Never change the supplied predicted class or treat softmax scores "
+            "as calibrated clinical probabilities. If the images are missing, unclear, or unsuitable, say so. "
+            "Use these Markdown headings on separate lines: Model output, Image and saliency review, Supporting metrics, "
+            "Interpretation and limitations, Review note. Use concise paragraphs and bullet lists."
+        )
+        prompt_text = (
+            "Create a report for this analysis record.\n"
+            f"Case ID: {case_id}\nInput filename: {filename}\n"
+            "Classifier: DenseNet121 with multi-view mean-probability aggregation\n"
+            f"Predicted class: {predicted_class}\nTop class score: {confidence:.4f} ({confidence * 100:.1f}%)\n"
+            "Class scores: " + ", ".join(
+                f"{item['label']}: {float(item['value']):.4f} ({float(item['value']) * 100:.1f}%)"
+                for item in probabilities
+            ) + "\n"
+            f"Cross-view agreement: {findings.get('crossViewAgreement', 'unavailable')}\n"
+            f"Prediction entropy: {findings.get('predictionEntropy', 'unavailable')}\n"
+            f"Confidence margin: {findings.get('confidenceMargin', 'unavailable')}\n"
+            f"Image quality heuristic: {findings.get('imageQuality', 'unavailable')}\n"
+            f"Uncertainty/OOD heuristic flag: {findings.get('oodDetected', 'unavailable')}\n"
+            f"Grad-CAM artifact available: {findings.get('gradcamAvailable', False)}\n"
+            f"Review heuristic: {findings.get('reviewNeeded', 'unavailable')}\n"
+            "Two image attachments may follow: the original radiograph and the Grad-CAM overlay. "
+            "Discuss only cautious technical observations supported by the images."
+        )
+        message_content = [{"type": "text", "text": prompt_text}]
+        if original_image is not None:
+            image_buffer = BytesIO()
+            original_image.convert("RGB").save(image_buffer, format="JPEG", quality=88)
+            image_data = base64.b64encode(image_buffer.getvalue()).decode("ascii")
+            message_content.append({
+                "type": "image_url",
+                "image_url": f"data:image/jpeg;base64,{image_data}",
+            })
+            message_content.append({"type": "text", "text": "Image 1: original uploaded chest radiograph."})
+        if gradcam_image_path:
+            gradcam_path = Path(gradcam_image_path)
+            if gradcam_path.is_file():
+                image_data = base64.b64encode(gradcam_path.read_bytes()).decode("ascii")
+                message_content.append({
+                    "type": "image_url",
+                    "image_url": f"data:image/png;base64,{image_data}",
+                })
+                message_content.append({"type": "text", "text": "Image 2: Grad-CAM saliency overlay for the model prediction."})
+
         llm = ChatGoogleGenerativeAI(
             model=model_name,
             temperature=0.2,
             max_retries=1,
-            timeout=25,
+            timeout=45,
         )
-        response = (prompt | llm).invoke({
-            "case_id": case_id,
-            "filename": filename,
-            "predicted_class": predicted_class,
-            "confidence": f"{confidence:.4f} ({confidence * 100:.1f}%)",
-            "probabilities": ", ".join(
-                f"{item['label']}: {float(item['value']):.4f} ({float(item['value']) * 100:.1f}%)"
-                for item in probabilities
-            ),
-            "agreement": findings.get("crossViewAgreement", "unavailable"),
-            "entropy": findings.get("predictionEntropy", "unavailable"),
-            "margin": findings.get("confidenceMargin", "unavailable"),
-            "quality": findings.get("imageQuality", "unavailable"),
-            "ood": findings.get("oodDetected", "unavailable"),
-            "gradcam": findings.get("gradcamAvailable", False),
-            "review": findings.get("reviewNeeded", "unavailable"),
-        })
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=message_content),
+        ])
         content = response.content
         if isinstance(content, list):
             content = "\n".join(
@@ -109,10 +126,13 @@ def generate_clinical_report(
     probabilities: List[Dict[str, Any]],
     findings: Dict[str, Any],
     case_id: str,
-    filename: str
+    filename: str,
+    original_image: Any = None,
+    gradcam_image_path: str | Path | None = None,
 ) -> Dict[str, str]:
     summary = _gemini_summary(
-        predicted_class, confidence, probabilities, findings, case_id, filename
+        predicted_class, confidence, probabilities, findings, case_id, filename,
+        original_image=original_image, gradcam_image_path=gradcam_image_path,
     )
     report_source = "gemini_flash_lite" if summary else "deterministic_grounded"
     if not summary:

@@ -140,7 +140,12 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         report = generate_clinical_report(
             predicted_class=state["predicted_class"], confidence=state["confidence"],
             probabilities=state["probabilities"], findings=findings,
-            case_id=analysis_id, filename=filename
+            case_id=analysis_id, filename=filename,
+            original_image=state["image"],
+            gradcam_image_path=(
+                settings.GRADCAM_DIR / Path(state["gradcam_url"]).name
+                if state.get("gradcam_url") else None
+            ),
         )
         workflow_hub.emit_nowait(analysis_id, "report", "completed", summary="Report generation completed.")
         return {"findings": findings, "report": report}
