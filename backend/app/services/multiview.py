@@ -5,55 +5,65 @@ from PIL import Image, ImageEnhance
 from typing import List, Dict, Any, Tuple
 from ..models.densenet import model_service
 
+
 def generate_multi_views(img_pil: Image.Image) -> List[Tuple[str, str, Image.Image]]:
-    """
-    Creates deterministic input perturbations for sensitivity analysis; these are not independent models.
-    """
-    views = []
-    
-    # 1. Original View
-    views.append(("original", "Original PA View", img_pil.copy()))
-    
-    # 2. Resized (Bilinear interpolation standard)
-    resized = img_pil.resize((224, 224), Image.Resampling.BILINEAR).resize(img_pil.size, Image.Resampling.BILINEAR)
-    views.append(("resized", "Resized (Bilinear Standard)", resized))
-    
-    # 3. Contrast-adjusted input (not CLAHE)
-    enhancer = ImageEnhance.Contrast(img_pil)
-    contrast_img = enhancer.enhance(1.35)
-    views.append(("contrast", "Contrast Adjusted", contrast_img))
-    
-    # 4. Center Cropped (focused lung field)
-    w, h = img_pil.size
-    crop_w, crop_h = int(w * 0.88), int(h * 0.88)
-    left = (w - crop_w) // 2
-    top = (h - crop_h) // 2
-    cropped = img_pil.crop((left, top, left + crop_w, top + crop_h)).resize((w, h))
-    views.append(("cropped", "Parenchyma Center Crop", cropped))
-    
-    # 5. Mild Test-Time Augmentation (TTA - mild rotation + subtle brightness shift)
-    augmented = img_pil.rotate(3, resample=Image.Resampling.BILINEAR)
-    b_enhancer = ImageEnhance.Brightness(augmented)
-    augmented = b_enhancer.enhance(1.05)
-    views.append(("augmented", "Test-Time Augmentation (TTA)", augmented))
-    
+    """Create deterministic perturbations for sensitivity analysis, not independent models."""
+    if not isinstance(img_pil, Image.Image) or img_pil.width < 1 or img_pil.height < 1:
+        raise ValueError("Multi-view inference requires a valid, non-empty PIL image.")
+
+    views = [("original", "Original View", img_pil.copy())]
+
+    resized = img_pil.resize((224, 224), Image.Resampling.BILINEAR).resize(
+        img_pil.size, Image.Resampling.BILINEAR
+    )
+    views.append(("resized", "Resize Sensitivity", resized))
+
+    contrast_img = ImageEnhance.Contrast(img_pil).enhance(1.35)
+    views.append(("contrast", "Contrast Sensitivity", contrast_img))
+
+    width, height = img_pil.size
+    crop_width = max(1, int(width * 0.88))
+    crop_height = max(1, int(height * 0.88))
+    left = (width - crop_width) // 2
+    top = (height - crop_height) // 2
+    cropped = img_pil.crop(
+        (left, top, left + crop_width, top + crop_height)
+    ).resize((width, height), Image.Resampling.BILINEAR)
+    views.append(("cropped", "Center-Crop Sensitivity", cropped))
+
+    augmented = img_pil.rotate(
+        3, resample=Image.Resampling.BILINEAR, fillcolor=0 if img_pil.mode == "L" else None
+    )
+    augmented = ImageEnhance.Brightness(augmented).enhance(1.05)
+    views.append(("augmented", "Mild Rotation/Brightness Sensitivity", augmented))
+
     return views
 
-def summarize_view_agreement(predicted_classes: List[str], display_classes: List[str]) -> Dict[str, Any]:
+
+def summarize_view_agreement(
+    predicted_classes: List[str], display_classes: List[str]
+) -> Dict[str, Any]:
     """Summarize class-vote consistency across transformed views, not model correctness."""
+    if not display_classes or len(set(display_classes)) != len(display_classes):
+        raise ValueError("Display classes must be non-empty and unique.")
     if not predicted_classes:
         raise ValueError("At least one view prediction is required.")
+    unknown = set(predicted_classes) - set(display_classes)
+    if unknown:
+        raise ValueError(f"View predictions contain unknown classes: {sorted(unknown)}")
+
     counts = {
         label: sum(prediction == label for prediction in predicted_classes)
         for label in display_classes
     }
-    agreement_fraction = max(counts.values(), default=0) / len(predicted_classes)
+    agreement_fraction = max(counts.values()) / len(predicted_classes)
     if agreement_fraction >= 0.8:
         agreement = "High"
     elif agreement_fraction >= 0.6:
         agreement = "Moderate"
     else:
         agreement = "Low (Borderline Disagreement)"
+
     return {
         "crossViewAgreement": agreement,
         "classVoteAgreement": round(agreement_fraction, 4),
@@ -61,71 +71,91 @@ def summarize_view_agreement(predicted_classes: List[str], display_classes: List
     }
 
 
+def _validate_probabilities(probabilities: Any, class_count: int) -> np.ndarray:
+    """Validate one classifier probability vector before aggregation."""
+    values = np.asarray(probabilities, dtype=np.float64)
+    if values.shape != (class_count,):
+        raise ValueError(
+            f"Model returned probability shape {values.shape}; expected ({class_count},)."
+        )
+    if not np.isfinite(values).all() or np.any(values < 0.0) or np.any(values > 1.0):
+        raise ValueError("Model returned non-finite or out-of-range probabilities.")
+    if not np.isclose(float(values.sum()), 1.0, atol=1e-3):
+        raise ValueError("Model probabilities must sum to 1.")
+    return values
+
+
 def run_multiview_inference(img_pil: Image.Image) -> Dict[str, Any]:
-    """
-    Executes DenseNet121 inference across all 5 synthesized views,
-    computing aggregated consensus probabilities and cross-view agreement.
-    """
+    """Run one classifier on deterministic input perturbations and report sensitivity."""
     views = generate_multi_views(img_pil)
+    display_classes = list(model_service.display_classes)
+    if not display_classes or len(set(display_classes)) != len(display_classes):
+        raise ValueError("Model display classes must be non-empty and unique.")
+
     view_results = []
     all_probs = []
-    
-    display_classes = model_service.display_classes
 
-    for view_id, view_name, v_img in views:
-        tensor = model_service.preprocess_transform(v_img).unsqueeze(0)
-        pred_idx, probs = model_service.predict(tensor)
-        
-        all_probs.append(probs)
-        pred_class = display_classes[pred_idx]
-        
+    for view_id, view_name, view_image in views:
+        tensor = model_service.preprocess_transform(view_image).unsqueeze(0)
+        pred_idx, raw_probs = model_service.predict(tensor)
+        probabilities = _validate_probabilities(raw_probs, len(display_classes))
+        if not isinstance(pred_idx, (int, np.integer)) or not 0 <= int(pred_idx) < len(display_classes):
+            raise ValueError("Model returned an invalid predicted class index.")
+
+        probability_class_idx = int(np.argmax(probabilities))
+        if int(pred_idx) != probability_class_idx:
+            raise ValueError("Predicted class index does not match the maximum probability.")
+
+        all_probs.append(probabilities)
+        predicted_class = display_classes[int(pred_idx)]
+
         preview_buffer = BytesIO()
-        v_img.convert("RGB").save(preview_buffer, format="JPEG", quality=72, optimize=True)
-        preview_url = "data:image/jpeg;base64," + base64.b64encode(preview_buffer.getvalue()).decode("ascii")
+        view_image.convert("RGB").save(
+            preview_buffer, format="JPEG", quality=72, optimize=True
+        )
+        preview_url = "data:image/jpeg;base64," + base64.b64encode(
+            preview_buffer.getvalue()
+        ).decode("ascii")
 
         view_results.append({
             "id": view_id,
             "previewUrl": preview_url,
             "name": view_name,
-            "predictedClass": pred_class,
-            "confidence": float(probs[pred_idx]),
+            "predictedClass": predicted_class,
+            "confidence": float(probabilities[int(pred_idx)]),
             "probabilities": {
-                display_classes[i]: float(probs[i]) for i in range(len(display_classes))
-            }
+                display_classes[i]: float(probabilities[i])
+                for i in range(len(display_classes))
+            },
         })
 
-    # Compute consensus (mean probabilities across 5 views)
-    probs_matrix = np.array(all_probs)  # shape (5, 3)
-    mean_probs = np.mean(probs_matrix, axis=0)  # shape (3,)
-    std_probs = np.std(probs_matrix, axis=0)    # variance per class
-    
+    probs_matrix = np.stack(all_probs, axis=0)
+    mean_probs = np.mean(probs_matrix, axis=0)
+    std_probs = np.std(probs_matrix, axis=0)
     consensus_idx = int(np.argmax(mean_probs))
-    consensus_class = display_classes[consensus_idx]
-    consensus_confidence = float(mean_probs[consensus_idx])
-    
-    # Vote agreement measures class consistency across transformed views.
-    # Probability dispersion is reported separately; neither metric proves correctness.
     vote_summary = summarize_view_agreement(
-        [view["predictedClass"] for view in view_results],
-        display_classes,
+        [view["predictedClass"] for view in view_results], display_classes
     )
-    avg_std = float(np.mean(std_probs))
 
     return {
         "views": view_results,
-        "consensusClass": consensus_class,
-        "consensusConfidence": consensus_confidence,
+        "consensusClass": display_classes[consensus_idx],
+        "consensusConfidence": float(mean_probs[consensus_idx]),
         "consensusProbabilities": {
-            display_classes[i]: float(mean_probs[i]) for i in range(len(display_classes))
+            display_classes[i]: float(mean_probs[i])
+            for i in range(len(display_classes))
         },
         "meanProbabilitiesList": [
             {
                 "label": display_classes[i],
                 "value": float(round(mean_probs[i], 3)),
-                "variance": float(round(std_probs[i], 4))
+                "variance": float(round(std_probs[i], 4)),
             }
             for i in range(len(display_classes))
         ],
         **vote_summary,
-        "crossViewStdDev": round(avg_std, 4)
+        "crossViewStdDev": round(float(np.mean(std_probs)), 4),
+        "analysisMethod": "single_model_transformed_input_sensitivity",
+        "independentModels": 1,
+        "viewCount": len(view_results),
     }
