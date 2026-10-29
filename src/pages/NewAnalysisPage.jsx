@@ -17,7 +17,7 @@ export default function NewAnalysisPage({ uploadedFile, setUploadedFile, filePre
         <UploadPanel uploadedFile={uploadedFile} filePreviewUrl={filePreviewUrl} onFileSelect={setUploadedFile} onFileRemove={() => setUploadedFile(null)} />
         <ImagePreparationPanel filePreviewUrl={filePreviewUrl} selectedViewId={selectedView} onSelectView={view => setSelectedView(view.id)} />
       </div>
-      <Card padding="p-3" className="analysis-action-bar">
+      <Card padding="card-padding-md" className="analysis-action-bar">
         <p className="page-muted">{isBackendConnected ? 'FastAPI / PyTorch backend is reachable.' : 'Backend unavailable. No simulated prediction will be returned.'}</p>
         <button onClick={() => runAnalysis(uploadedFile)} disabled={!uploadedFile || isAnalyzing || !isBackendConnected} className="page-action page-action--primary page-action--analyze">
           {isAnalyzing ? <><Loader2 className="spin-icon"/>Running analysis…</> : <><Play />Analyze Radiograph</>}
