@@ -66,9 +66,13 @@ async def analyze_radiograph(image: UploadFile = File(...)):
     if len(contents) > max_upload_bytes:
         raise HTTPException(status_code=413, detail="File size exceeds 20 MiB limit.")
     try:
-        img = Image.open(io.BytesIO(contents))
-        img.verify()
+        probe = Image.open(io.BytesIO(contents))
+        if probe.format not in {"PNG", "JPEG"}:
+            raise HTTPException(status_code=415, detail="Only PNG and JPEG images are supported.")
+        probe.verify()
         img = Image.open(io.BytesIO(contents)).convert("RGB")
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Upload is not a valid supported image.") from exc
 
