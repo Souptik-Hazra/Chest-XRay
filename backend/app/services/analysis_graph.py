@@ -10,12 +10,18 @@ from langgraph.graph import StateGraph, START, END
 
 class AnalysisState(TypedDict, total=False):
     image: Any
+    multiview_result: dict
     predicted_class: str
     confidence: float
     probabilities: list[dict]
+    inference_duration: float
+    quality: dict
+    uncertainty: dict
     findings: dict
     report: dict
+    gradcam_url: str | None
     gradcam_available: bool
+    gradcam_duration: float
     errors: list[str]
 
 
