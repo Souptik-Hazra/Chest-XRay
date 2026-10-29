@@ -23,7 +23,7 @@ export default function XRayViewer({ imageUrl = null, gradcamUrl = null, title =
     else document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
   };
   const renderImageContent = (withOverlay = false, customBadge = null, applyView = true) => {
-    const isShowingHeatmap = withOverlay || showOverlay;
+    const isShowingHeatmap = isCompareMode ? withOverlay : (withOverlay || showOverlay);
     const hasFilter = applyView && activeView?.filter && activeView.filter !== 'none';
     const isScale = Boolean(hasFilter && activeView.filter.includes('scale'));
     const isAugmented = Boolean(applyView && activeView?.id === 'augmented');
