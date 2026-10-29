@@ -1,8 +1,10 @@
 import os
 from pathlib import Path
 from pydantic import BaseModel
+from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+load_dotenv(REPO_ROOT / ".env")
 DEFAULT_MODEL_DIR = REPO_ROOT / "Pneumonia"
 
 

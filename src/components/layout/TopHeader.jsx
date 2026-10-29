@@ -1,6 +1,5 @@
 import './layout.css';
 
-
 export default function TopHeader({ isBackendConnected = false }) {
   return (
     <header className="top-header">
@@ -14,10 +13,6 @@ export default function TopHeader({ isBackendConnected = false }) {
       </div>
       <div className="top-header__center">
         <h1 className="top-header__title">Multi-Agent AI for Chest X-Ray Analysis</h1>
-        <span className="top-header__prototype">
-          <span className="top-header__pulse" />
-          Research Prototype
-        </span>
       </div>
       <div className="top-header__status">
         <span className="top-header__status-dot" />

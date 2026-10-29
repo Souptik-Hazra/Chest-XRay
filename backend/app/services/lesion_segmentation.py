@@ -166,6 +166,13 @@ class LesionSegmentationService:
             ):
                 raise ValueError("Segmentation model returned an unexpected mask shape.")
             probabilities = mask[0, 0].detach().float().cpu().numpy()
+
+            logger.info(
+                "Segmentation diagnostics: min=%.4f max=%.4f mean=%.4f threshold=0.5",
+                float(probabilities.min()),
+                float(probabilities.max()),
+                float(probabilities.mean()),
+            )
             return build_segmentation_artifacts(image, probabilities)
         except Exception:
             logger.exception("Opacity segmentation inference failed")
