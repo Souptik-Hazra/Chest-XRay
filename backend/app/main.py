@@ -22,11 +22,16 @@ app = FastAPI(
 # Enable CORS for Vite frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list(dict.fromkeys([
+    allow_origins=list(dict.fromkeys(
         origin.strip().rstrip("/")
-        for origin in [settings.FRONTEND_ORIGIN, "http://localhost:5173", "http://127.0.0.1:5173"]
+        for origin in [
+            settings.FRONTEND_ORIGIN,
+            *settings.CORS_ORIGINS.split(","),
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
         if origin and origin.strip()
-    ])),
+    )),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
