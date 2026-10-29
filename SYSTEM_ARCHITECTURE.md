@@ -46,7 +46,7 @@ Diagnostics and Grad-CAM are separate graph branches after inference; the report
 - React application built with Vite.
 - Vite proxies `/api` requests to FastAPI at `http://127.0.0.1:8000`.
 - Main views: Overview, New Analysis, and Analysis Results.
-- Results include classifier findings, transformed-input sensitivity, Grad-CAM, a segmentation-unavailable notice, and the generated report.
+- Results include classifier findings, transformed-input sensitivity, Grad-CAM, optional opacity segmentation, and the generated report.
 - The frontend does not synthesize a prediction when the backend is unavailable.
 - Uploaded images are previewed in the browser. The browser session holds the current result; results are not persisted as saved history.
 
@@ -72,7 +72,7 @@ There are no current API endpoints for database-backed history, fetching an indi
 - Accepted formats in the backend: formats supported by Pillow that pass image verification; the frontend currently allows PNG and JPEG.
 - Maximum request image size: 20 MiB.
 
-The response includes a case ID, timestamp, predicted class, class scores, heuristic findings, per-view inference results, report fields, and a Grad-CAM data URL when available.
+The response includes a case ID, timestamp, predicted class, class scores, heuristic findings, per-view inference results, report fields, a Grad-CAM data URL when available, and segmentation status/mask data when enabled.
 
 ## 5. Model and preprocessing
 
@@ -85,7 +85,7 @@ The response includes a case ID, timestamp, predicted class, class scores, heuri
 - Entropy and confidence margin describe the model scores; the OOD flag is a heuristic, not a validated OOD detector.
 - Grad-CAM visualizes regions influencing a model score. It does not establish pathology or delineate a lesion.
 
-The preparation-view labels in the UI are visual previews. They should not be treated as an exact reproduction of every backend tensor transformation.
+The preparation-view labels in the UI are visual previews. Their descriptions summarize backend transformations but do not reproduce the model tensors pixel-for-pixel.
 
 ## 6. Report generation and privacy
 
@@ -93,7 +93,7 @@ If `GOOGLE_API_KEY` or `GEMINI_API_KEY` is configured, the report service attemp
 
 When Gemini reporting is enabled, the original radiograph and Grad-CAM overlay may be sent to Google's Gemini API. Obtain any required consent and follow applicable privacy and data-handling requirements before using sensitive images.
 
-The application does not persist uploaded radiographs, Grad-CAM images, or analysis records to a local database or storage directory. The response is returned to the active browser session and is not available as saved history after a refresh or restart. The SSE workflow hub temporarily retains events in process memory; its lifecycle and retention should be maintained carefully.
+The application does not persist uploaded radiographs, Grad-CAM images, or analysis records to a local database or storage directory. The response is returned to the active browser session and is not available as saved history after a refresh or restart. The optional opacity-segmentation model is loaded separately and only when `SEGMENTATION_ENABLED=true`. It predicts a binary opacity mask; its training annotations were converted from bounding boxes, so it is not a validated pixel-precise lesion contour. The mask-area percentage uses the full image as its denominator, not the lung field.
 
 ## 7. Configuration
 
@@ -106,7 +106,7 @@ Relevant environment variables:
 - `FRONTEND_ORIGIN`: configured frontend origin.
 - `GOOGLE_API_KEY` or `GEMINI_API_KEY`: optional Gemini credentials.
 - `CHESTX_REPORT_MODEL`: optional Gemini model override.
-- `VITE_API_BASE_URL`: frontend API base path (defaults to `/api`).
+- `VITE_API_BASE_URL`: frontend API base path (defaults to `/api`).\n- `SEGMENTATION_ENABLED`: enable optional opacity segmentation (`false` by default).\n- `SEGMENTATION_MODEL_ID`, `SEGMENTATION_MODEL_REVISION`: model repository and pinned revision.
 
 Keep credentials in an untracked local `.env` file. Never commit secrets.
 
@@ -126,7 +126,7 @@ Run model-checkpoint integration tests separately on a machine where the local m
 ## 9. Known boundaries
 
 - No saved analysis history or SQLite-backed records.
-- No active segmentation model; the UI only explains that segmentation was not performed.
+- Optional binary pneumonia-related opacity segmentation is available when enabled; it is a research output, not a verified clinical contour.
 - No validated clinical calibration, OOD detection, or triage system.
 - No claim that transformed-input aggregation improves clinical accuracy.
-- Workflow SSE exists in the backend; verify client subscription and cleanup before relying on it for a live progress UI.
+- Workflow progress streaming is not implemented; the analysis request returns the completed result.
