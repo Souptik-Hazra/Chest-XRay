@@ -1,4 +1,3 @@
-import React from 'react';
 import { Plus, Activity } from 'lucide-react';
 import { cn } from '../../lib/utils.js';
 import './layout.css';
