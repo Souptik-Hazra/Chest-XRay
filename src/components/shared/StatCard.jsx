@@ -7,12 +7,14 @@ const VALUE_COLORS = {
   'text-indigo-600 dark:text-indigo-400': 'stat-card__value--indigo',
   'text-emerald-600 dark:text-emerald-400': 'stat-card__value--green',
   'text-red-600 dark:text-red-400': 'stat-card__value--red',
+  'text-slate-700 dark:text-slate-300': 'stat-card__value--slate',
 };
 const SUBTITLE_COLORS = {
   'text-slate-400': 'stat-card__subtitle--muted',
   'text-indigo-500': 'stat-card__subtitle--indigo',
   'text-emerald-500': 'stat-card__subtitle--green',
   'text-red-500': 'stat-card__subtitle--red',
+  'text-emerald-600 dark:text-emerald-400': 'stat-card__subtitle--green',
 };
 
 export default function StatCard({
