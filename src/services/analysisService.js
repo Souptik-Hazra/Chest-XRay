@@ -37,8 +37,10 @@ function normalizeAnalysisResult(data) {
     throw new Error('Malformed analysis response: expected three unique classes with probabilities in [0, 1].');
   }
   const probabilityTotal = data.probabilities.reduce((sum, item) => sum + item.value, 0);
-  const topClass = data.probabilities.reduce((top, item) => item.value > top.value ? item : top);
-  if (Math.abs(probabilityTotal - 1) > 0.02 || topClass.label !== data.predictedClass) {
+  const predictedProbability = data.probabilities.find(item => item.label === data.predictedClass);
+  const highestProbability = Math.max(...data.probabilities.map(item => item.value));
+  if (Math.abs(probabilityTotal - 1) > 0.02 || !predictedProbability ||
+      highestProbability - predictedProbability.value > 0.00001) {
     throw new Error('Malformed analysis response: class probabilities do not match the predicted class.');
   }
   if (!Number.isFinite(Number(data.confidence)) || Number(data.confidence) < 0 ||
