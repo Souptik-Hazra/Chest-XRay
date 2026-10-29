@@ -24,7 +24,7 @@ export default function TopHeader({ isBackendConnected = false }) {
       </div>
       <div className="top-header__status">
         <span className="top-header__status-dot" />
-        <span>{isBackendConnected ? 'DenseNet121 AI Engine: Connected' : 'DenseNet121 AI Engine: Ready'}</span>
+        <span>{isBackendConnected ? 'DenseNet121 AI Engine: Connected' : 'DenseNet121 AI Engine: Unavailable'}</span>
       </div>
     </header>
   );
