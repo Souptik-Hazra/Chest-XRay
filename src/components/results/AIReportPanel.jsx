@@ -28,10 +28,10 @@ export default function AIReportPanel({ analysisResult }) {
     link.href = url; link.download = `ChestX_Report_${id}.txt`; link.click(); URL.revokeObjectURL(url);
   };
   return <div className="ai-report-panel">
-    <div className="ai-report-toolbar"><div className="ai-report-title"><FileText/><span>Model Output Summary</span><span className="ai-report-source">{report.reportSource==='langchain'?'LangChain summary':'Evidence-bounded summary'}</span></div>
-      <div className="ai-report-actions"><button onClick={handleCopy} className="ai-report-button">{copied?<Check/>:<Copy/>}{copied?'Copied':'Copy'}</button><button onClick={handleDownload} className="ai-report-button ai-report-button--primary"><Download/>Export TXT</button></div>
+    <div className="ai-report-toolbar"><div className="ai-report-title"><FileText className="ai-report-icon"/><span>Model Output Summary</span><span className="ai-report-source">{report.reportSource==='langchain'?'LangChain summary':'Evidence-bounded summary'}</span></div>
+      <div className="ai-report-actions"><button onClick={handleCopy} className="ai-report-button">{copied?<Check className="ai-report-action-icon"/>:<Copy className="ai-report-action-icon"/>}{copied?'Copied':'Copy'}</button><button onClick={handleDownload} className="ai-report-button ai-report-button--primary"><Download className="ai-report-action-icon"/>Export TXT</button></div>
     </div>
-    <Card padding="p-4" className="ai-report-content">
+    <Card padding="card-padding-lg" className="ai-report-content">
       <div><h5 className="ai-report-subheading">Model summary</h5><p className="ai-report-paragraph">{report.summary||'No report summary was returned by the backend.'}</p></div>
       <div className="ai-report-diagnostics"><div>Predicted class: <strong>{predictedClass}</strong></div><div>Model score: <strong>{(Number(confidence)*100).toFixed(1)}%</strong></div><div>View agreement: {findings.crossViewAgreement??'Unavailable'}</div><div>Entropy: {findings.predictionEntropy??'Unavailable'}</div><div>Image quality: {findings.imageQuality??'Unavailable'}</div><div>Uncertainty heuristic: {findings.oodDetected===true?'Flagged':findings.oodDetected===false?'Not flagged':'Unavailable'}</div></div>
       <div><h5 className="ai-report-subheading">Grad-CAM limitation</h5><p className="ai-report-paragraph ai-report-paragraph--muted">{report.gradcamNote||'Unavailable.'}</p></div>
