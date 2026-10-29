@@ -34,9 +34,18 @@ export default function SegmentationPanel({ analysisResult = null }) {
     </div>
     <div className="segmentation-metrics">
       <div><span>Predicted mask area</span><strong>{segmentation.areaPercent}%</strong></div>
-      <div><span>Mean mask score</span><strong>{(segmentation.meanMaskScore * 100).toFixed(1)}%</strong></div>
+      <div><span>Mean score in mask</span><strong>{(segmentation.meanMaskScore * 100).toFixed(1)}%</strong></div>
       <div><span>Threshold</span><strong>{segmentation.threshold}</strong></div>
     </div>
+    {segmentation.thresholdAreaPercent && <div className="segmentation-threshold-check">
+      <span>Mask area at alternate thresholds</span>
+      <div>
+        <span>0.3: {segmentation.thresholdAreaPercent["0.3"]}%</span>
+        <span>0.5: {segmentation.thresholdAreaPercent["0.5"]}%</span>
+        <span>0.7: {segmentation.thresholdAreaPercent["0.7"]}%</span>
+      </div>
+      <small>Large changes indicate threshold sensitivity, not segmentation accuracy.</small>
+    </div>}
     <Callout icon={AlertCircle} variant="warning">
       <strong>Research limitation.</strong> {segmentation.limitations} The mask area is the percentage of the full image covered by the predicted mask, not a lung-area ratio. A blank mask does not rule out disease.
     </Callout>

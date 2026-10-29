@@ -9,6 +9,8 @@ class ProbabilityItem(BaseModel):
 
 class FindingsSchema(BaseModel):
     crossViewAgreement: str = "High"
+    classVoteAgreement: Optional[float] = None
+    classVoteCounts: Optional[Dict[str, int]] = None
     predictionEntropy: float = 0.0
     confidenceMargin: float = 0.0
     imageQuality: str = "Good"
@@ -32,6 +34,7 @@ class SegmentationSchema(BaseModel):
     maskUrl: Optional[str] = None
     overlayUrl: Optional[str] = None
     areaPercent: Optional[float] = None
+    thresholdAreaPercent: Optional[Dict[str, float]] = None
     meanMaskScore: Optional[float] = None
     threshold: Optional[float] = None
     imageWidth: Optional[int] = None

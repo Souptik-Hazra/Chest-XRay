@@ -104,6 +104,8 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         uncertainty = compute_uncertainty_metrics(probs, result["crossViewAgreement"])
         findings = {
             "crossViewAgreement": result["crossViewAgreement"],
+            "classVoteAgreement": result["classVoteAgreement"],
+            "classVoteCounts": result["classVoteCounts"],
             "predictionEntropy": uncertainty["predictionEntropy"],
             "confidenceMargin": uncertainty["confidenceMargin"],
             "imageQuality": quality["rating"],
