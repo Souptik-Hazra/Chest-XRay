@@ -44,6 +44,22 @@ class TestSegmentationArtifacts(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_segmentation_artifacts(Image.new("RGB", (16, 16)), probabilities)
 
+    def test_threshold_outside_probability_range_is_rejected(self):
+        with self.assertRaises(ValueError):
+            build_segmentation_artifacts(
+                Image.new("RGB", (16, 16)), np.zeros((8, 8), dtype=np.float32), threshold=1.1
+            )
+
+    def test_empty_mask_array_is_rejected(self):
+        with self.assertRaises(ValueError):
+            build_segmentation_artifacts(Image.new("RGB", (16, 16)), np.empty((0, 0), dtype=np.float32))
+
+    def test_multichannel_mask_is_rejected(self):
+        with self.assertRaises(ValueError):
+            build_segmentation_artifacts(
+                Image.new("RGB", (16, 16)), np.zeros((1, 8, 8), dtype=np.float32)
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
