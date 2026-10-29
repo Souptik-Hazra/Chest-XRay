@@ -1,3 +1,4 @@
+import base64
 import io
 import logging
 import time
@@ -5,13 +6,12 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 from PIL import Image
 import numpy as np
 
 from ..core.config import settings
-from ..core.database import save_analysis, get_all_analyses, get_analysis_by_id
 from ..models.densenet import model_service, CLASS_COLORS
 from ..models.gradcam import GradCAM
 from ..services.multiview import run_multiview_inference
@@ -74,8 +74,6 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Upload is not a valid supported image.") from exc
 
     analysis_id = f"CHX-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-    save_path = settings.UPLOAD_DIR / f"{analysis_id}_{filename}"
-    img.save(save_path)
 
     def inference_node(state):
         started = time.perf_counter()
@@ -126,13 +124,20 @@ async def analyze_radiograph(image: UploadFile = File(...)):
             workflow_hub.emit_nowait(analysis_id, "gradcam", "completed", summary="Grad-CAM was unavailable for this input.")
             return {"gradcam_url": None, "gradcam_available": False,
                     "gradcam_duration": round(time.perf_counter() - started, 3)}
-        overlay = GradCAM.overlay_heatmap(np.array(state["image"].resize((224, 224))), heatmap, alpha=0.45)
-        artifact = f"gradcam_{analysis_id}.png"
-        Image.fromarray(overlay).save(settings.GRADCAM_DIR / artifact)
+        overlay = Image.fromarray(
+            GradCAM.overlay_heatmap(np.array(state["image"].resize((224, 224))), heatmap, alpha=0.45)
+        )
+        buffer = io.BytesIO()
+        overlay.save(buffer, format="PNG")
+        overlay_data = base64.b64encode(buffer.getvalue()).decode("ascii")
         duration = round(time.perf_counter() - started, 3)
-        workflow_hub.emit_nowait(analysis_id, "gradcam", "completed", duration=duration, summary="Grad-CAM artifact generated.")
-        return {"gradcam_url": f"/api/artifacts/{artifact}", "gradcam_available": True,
-                "gradcam_duration": duration}
+        workflow_hub.emit_nowait(analysis_id, "gradcam", "completed", duration=duration, summary="Grad-CAM generated in memory.")
+        return {
+            "gradcam_url": f"data:image/png;base64,{overlay_data}",
+            "gradcam_image": overlay,
+            "gradcam_available": True,
+            "gradcam_duration": duration,
+        }
 
     def report_node(state):
         workflow_hub.emit_nowait(analysis_id, "report", "started", summary="Preparing evidence-bounded report.")
@@ -142,10 +147,7 @@ async def analyze_radiograph(image: UploadFile = File(...)):
             probabilities=state["probabilities"], findings=findings,
             case_id=analysis_id, filename=filename,
             original_image=state["image"],
-            gradcam_image_path=(
-                settings.GRADCAM_DIR / Path(state["gradcam_url"]).name
-                if state.get("gradcam_url") else None
-            ),
+            gradcam_image=state.get("gradcam_image"),
         )
         workflow_hub.emit_nowait(analysis_id, "report", "completed", summary="Report generation completed.")
         return {"findings": findings, "report": report}
@@ -169,13 +171,6 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         "findings": result["findings"], "multiview": result["multiview_result"]["views"],
         "report": result["report"], "gradcamUrl": result.get("gradcam_url"), "status": "completed",
     }
-    save_analysis({
-        "id": record["id"], "filename": record["filename"], "timestamp": record["timestamp"],
-        "predicted_class": record["predictedClass"], "confidence": record["confidence"],
-        "confidence_level": record["confidenceLevel"], "probabilities": record["probabilities"],
-        "findings": record["findings"], "multiview": record["multiview"],
-        "report": record["report"], "gradcam_url": record["gradcamUrl"], "status": "completed",
-    })
     return record
 
 
@@ -185,28 +180,4 @@ async def stream_workflow_events(analysis_id: str):
                              headers={"Cache-Control": "no-cache", "Connection": "keep-alive",
                                       "X-Accel-Buffering": "no"})
 
-
-@router.get("/analysis/{analysis_id}")
-async def get_analysis(analysis_id: str):
-    record = get_analysis_by_id(analysis_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Analysis record not found.")
-    return record
-
-
-@router.get("/history")
-async def get_history(limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0)):
-    return get_all_analyses(limit=limit, offset=offset)
-
-
-@router.get("/artifacts/{filename}")
-async def get_artifact(filename: str):
-    # Prevent path traversal and only serve generated artifact files.
-    safe_name = Path(filename).name
-    if safe_name != filename:
-        raise HTTPException(status_code=400, detail="Invalid artifact name.")
-    path = settings.GRADCAM_DIR / safe_name
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="Artifact not found.")
-    return FileResponse(str(path), media_type="image/png")
 
