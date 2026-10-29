@@ -13,7 +13,7 @@ export default function FindingsPanel({ analysisResult }) {
       <div className="findings-status-row"><span className="findings-check"><Check/></span><span className="findings-status">Analysis Complete</span>
         {analysisResult?.isDemoData ? <span className="findings-record-badge">Sample Record</span> : <span className="findings-inference-badge"><span/>DenseNet121 Inference</span>}
       </div>
-      <div className="findings-class-row"><h3>{predictedClass}</h3><ClassBadge predictedClass={predictedClass} className="text-xs px-2.5 py-0.5"/><span>{(confidence*100).toFixed(1)}%</span></div>
+      <div className="findings-class-row"><h3>{predictedClass}</h3><ClassBadge predictedClass={predictedClass} className="class-badge--compact"/><span>{(confidence*100).toFixed(1)}%</span></div>
     </div><div className="findings-metadata"><div>{id}</div><span><Clock/>{formatDate(timestamp)}</span></div></div>
     <section className="findings-probability"><h4>Class Probabilities (DenseNet121)</h4><ProbabilityBars probabilities={probabilities} predictedClass={predictedClass}/></section>
     <section><h4 className="findings-section-title">Model Diagnostic Indices</h4><div className="findings-grid">
