@@ -13,7 +13,17 @@ export function useAppState() {
   const resultPreviewRef = useRef(null);
 
   useEffect(() => {
-    checkBackendHealth().then((health) => setIsBackendConnected(Boolean(health.online)));
+    let active = true;
+    const refreshHealth = async () => {
+      const health = await checkBackendHealth();
+      if (active) setIsBackendConnected(Boolean(health.online));
+    };
+    refreshHealth();
+    const intervalId = window.setInterval(refreshHealth, 30000);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   const startNewAnalysis = () => {
@@ -23,12 +33,10 @@ export function useAppState() {
     setAnalysisResult(null);
     setAnalysisError('');
     setUploadedFile(null);
-    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
     setFilePreviewUrl(null);
   };
 
   const handleSetUploadedFile = (file) => {
-    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
     setUploadedFile(file);
     setFilePreviewUrl(file ? URL.createObjectURL(file) : null);
     setAnalysisError('');
@@ -51,7 +59,15 @@ export function useAppState() {
     }
   };
 
-  useEffect(() => () => { if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current); }, []);
+  useEffect(() => () => {
+    if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+    };
+  }, [filePreviewUrl]);
 
   return {
     activePage, setActivePage, analysisResult, setAnalysisResult,
