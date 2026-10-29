@@ -20,10 +20,10 @@ function InlineMarkdown({ text }) {
 function FormattedReport({ content }) {
   const lines = String(content || 'No report summary was returned by the backend.')
     .replace(/\r/g, '')
-    .replace(/[ \\t]+(?=#{1,3}\\s)/g, '\\n')
-    .replace(/\\s+-\\s+(?=\\*\\*)/g, '\\n- ')
-    .replace(/\\s+(?=\\*\\*[^*]+\\*\\*:)/g, '\\n')
-    .split('\\n');
+    .replace(/[ \t]+(?=#{1,3}\s)/g, '\n')
+    .replace(/\s+-\s+(?=\*\*)/g, '\n- ')
+    .replace(/\s+(?=\*\*[^*]+\*\*:)/g, '\n')
+    .split('\n');
   const blocks = [];
   let listItems = [];
 
