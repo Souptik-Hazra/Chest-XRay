@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.services.quality_ood import check_image_quality, compute_uncertainty_metrics
 from app.services.report import generate_clinical_report
+from app.schemas.analysis import ReportSchema
 
 
 class TestDeterministicServices(unittest.TestCase):
@@ -40,6 +41,15 @@ class TestDeterministicServices(unittest.TestCase):
                 if value is not None:
                     os.environ[key] = value
 
+    def test_report_source_metadata_is_preserved_by_schema(self):
+        report = ReportSchema(
+            summary="Test summary",
+            reportSource="gemini_flash_lite",
+            reportModel="configured-model",
+        )
+        data = report.model_dump()
+        self.assertEqual(data["reportSource"], "gemini_flash_lite")
+        self.assertEqual(data["reportModel"], "configured-model")
 
 if __name__ == "__main__":
     unittest.main()
