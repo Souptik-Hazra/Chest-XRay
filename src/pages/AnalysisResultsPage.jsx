@@ -37,7 +37,7 @@ export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, 
           <div className="results-viewer"><XRayViewer imageUrl={previewUrl} gradcamUrl={analysisResult.gradcamUrl} title={`Case: ${analysisResult.id} • ${analysisResult.filename}`} isGradcamActive={activeResultTab === 'gradcam'} activeView={selectedView} /></div>
           <div className="results-preparation"><ImagePreparationPanel filePreviewUrl={previewUrl} isCompact selectedViewId={selectedView?.id || 'original'} onSelectView={setSelectedView} /></div>
         </div>
-        <Card padding="p-0" className="results-detail-card">
+        <Card padding="card-padding-none" className="results-detail-card">
           <div className="results-tabs"><TabNav tabs={RESULT_TABS.map(({id,label})=>({id,label}))} activeTab={activeTab.id} onSelectTab={setActiveResultTab} variant="underline" /></div>
           <div className="results-panel">{activeTab.id === 'gradcam' ? <ActivePanel previewUrl={previewUrl} gradcamUrl={analysisResult.gradcamUrl} /> : activeTab.id === 'segmentation' ? <ActivePanel /> : <ActivePanel {...panelProps} />}</div>
           <div className="results-footer"><span>Model: DenseNet121</span><span>Research prototype</span></div>
