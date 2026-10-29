@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root {
+  --sidebar-width: 216px;
+  --header-height: 56px;
+  --bg-primary: #0b1120;
+  --bg-secondary: #0f172a;
+  --bg-surface: #1e293b;
+  --border-subtle: #334155;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; width: 100%; overflow: hidden; margin: 0; padding: 0; }
+
+/* Custom scrollbar for inner panels */
+.panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+.panel-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+.panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.panel-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+/* Hide scrollbars where scrolling is enabled but scrollbars are undesirable */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

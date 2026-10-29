@@ -1,0 +1,32 @@
+# Original trained model and dataset — never commit
+/Pneumonia/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Frontend
+node_modules/
+dist/
+
+# Generated data and artifacts
+*.sqlite
+*.db
+artifacts/
+cache/
+logs/
+
+# Model checkpoints and weights
+*.pth
+*.pt
+*.ckpt
+*.onnx
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
