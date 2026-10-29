@@ -11,3 +11,7 @@ langgraph
 langchain-core
 langchain-google-genai
 python-dotenv
+transformers>=4.47,<5
+timm
+albumentations
+safetensors
