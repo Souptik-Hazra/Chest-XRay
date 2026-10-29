@@ -1,10 +1,22 @@
 import React from 'react';
 import { cn } from '../../lib/utils.js';
+import './shared.css';
 
-/**
- * Reusable stat/metric display card.
- * Replaces the repeated pattern of label + value + subtitle in OverviewPage and ModelInsightsPage.
- */
+const VALUE_COLORS = {
+  'text-slate-900 dark:text-white': 'stat-card__value--default',
+  'text-indigo-600 dark:text-indigo-400': 'stat-card__value--indigo',
+  'text-emerald-600 dark:text-emerald-400': 'stat-card__value--green',
+  'text-red-600 dark:text-red-400': 'stat-card__value--red',
+  'text-slate-700 dark:text-slate-300': 'stat-card__value--slate',
+};
+const SUBTITLE_COLORS = {
+  'text-slate-400': 'stat-card__subtitle--muted',
+  'text-indigo-500': 'stat-card__subtitle--indigo',
+  'text-emerald-500': 'stat-card__subtitle--green',
+  'text-red-500': 'stat-card__subtitle--red',
+  'text-emerald-600 dark:text-emerald-400': 'stat-card__subtitle--green',
+};
+
 export default function StatCard({
   label,
   value,
@@ -14,23 +26,10 @@ export default function StatCard({
   className = '',
 }) {
   return (
-    <div
-      className={cn(
-        'p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800',
-        className
-      )}
-    >
-      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-        {label}
-      </span>
-      <div className={cn('text-lg font-bold mt-0.5', valueColor)}>
-        {value}
-      </div>
-      {subtitle && (
-        <span className={cn('text-[10px] font-medium', subtitleColor)}>
-          {subtitle}
-        </span>
-      )}
+    <div className={cn('stat-card', className)}>
+      <span className="stat-card__label">{label}</span>
+      <div className={cn('stat-card__value', VALUE_COLORS[valueColor] || VALUE_COLORS['text-slate-900 dark:text-white'])}>{value}</div>
+      {subtitle && <span className={cn('stat-card__subtitle', SUBTITLE_COLORS[subtitleColor] || 'stat-card__subtitle--muted')}>{subtitle}</span>}
     </div>
   );
 }

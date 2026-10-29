@@ -1,5 +1,6 @@
 import {BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,} from 'recharts';
 import { demoMetrics } from '../../data/demoData.js';
+import './chart.css';
 
 export default function MetricsChart({ data = demoMetrics.perClass }) {
   const chartData = data.map((item) => ({
@@ -11,7 +12,7 @@ export default function MetricsChart({ data = demoMetrics.perClass }) {
   }));
 
   return (
-    <div className="w-full h-64">
+    <div className="metrics-chart">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
