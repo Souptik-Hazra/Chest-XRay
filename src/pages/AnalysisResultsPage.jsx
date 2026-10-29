@@ -25,7 +25,7 @@ function EmptyResults({ message, onNewAnalysis }) {
 
 export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, filePreviewUrl, activeResultTab, setActiveResultTab, analysisError = '' }) {
   const [selectedView, setSelectedView] = useState(PREPARATION_VIEWS[0]);
-  if (!analysisResult) return <EmptyResults message={analysisError || 'Run an analysis using a real image or select a saved database record.'} onNewAnalysis={startNewAnalysis} />;
+  if (!analysisResult) return <EmptyResults message={analysisError || 'Upload a chest X-ray and run an analysis to see results.'} onNewAnalysis={startNewAnalysis} />;
   const previewUrl = analysisResult.previewUrl || filePreviewUrl;
   const activeTab = RESULT_TABS.find(tab => tab.id === activeResultTab) || RESULT_TABS[0];
   const ActivePanel = activeTab.Component;
