@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { analyzeImage, checkBackendHealth } from '../services/analysisService.js';
 
 export function useAppState() {
-  const [activePage, setActivePage] = useState('overview');
+  const [activePage, setActivePage] = useState('new-analysis');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState(null);
@@ -15,8 +15,6 @@ export function useAppState() {
   useEffect(() => {
     checkBackendHealth().then((health) => setIsBackendConnected(Boolean(health.online)));
   }, []);
-
-  const loadDemoResult = () => startNewAnalysis();
 
   const startNewAnalysis = () => {
     if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
@@ -59,7 +57,6 @@ export function useAppState() {
     activePage, setActivePage, analysisResult, setAnalysisResult,
     uploadedFile, setUploadedFile: handleSetUploadedFile, filePreviewUrl,
     isAnalyzing, analysisError, activeResultTab, setActiveResultTab,
-    isBackendConnected, loadDemoResult, startNewAnalysis,
-    runAnalysis,
+    isBackendConnected, startNewAnalysis, runAnalysis,
   };
 }
