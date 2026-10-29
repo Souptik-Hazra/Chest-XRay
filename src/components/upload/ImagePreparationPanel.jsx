@@ -12,7 +12,7 @@ export default function ImagePreparationPanel({ filePreviewUrl = null, selectedV
   const renderPreview = (view, thumbnail = false) => <div className="preparation-preview" style={{filter:view.filter !== 'none' && !view.filter.includes('scale') ? view.filter : undefined,transform:view.filter.includes('scale') ? (thumbnail ? 'scale(1.2)' : 'scale(1.25)') : undefined}}>
     {filePreviewUrl ? <img src={filePreviewUrl} alt={thumbnail ? view.name : 'Prepared radiograph'} className={thumbnail ? 'preparation-image preparation-image--cover' : 'preparation-image'}/> : <div className="preparation-empty">Upload a radiograph to preview preprocessing</div>}
   </div>;
-  return <Card padding={isCompact ? 'p-2.5 gap-2' : 'p-4 gap-3'} className="preparation-panel">
+  return <Card padding={isCompact ? 'card-padding-compact' : 'card-padding-lg-gap'} className="preparation-panel">
     <div className="preparation-heading"><div><h3><Layers/>Image Preprocessing Views</h3>{!isCompact && <p>Preview the selected image transform. These views are not an independent model ensemble.</p>}</div><span className="preparation-badge">Input sensitivity</span></div>
     {!isCompact && <div className="preparation-main-preview">{renderPreview(activeView)}<div className="preparation-caption">{activeView.name} — {activeView.desc}</div></div>}
     <div><div className="preparation-views-label"><span>Available preprocessing views</span><span>Select a view to preview</span></div><div className="preparation-thumbnails">{PREPARATION_VIEWS.map(view => {
