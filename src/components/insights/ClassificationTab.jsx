@@ -2,6 +2,7 @@ import React from 'react';
 import { Info } from 'lucide-react';
 import MetricsChart from '../charts/MetricsChart.jsx';
 import { Callout } from '../shared/index.js';
+import './insights.css';
 import { CONFUSION_MATRIX } from '../../data/insightsData.js';
 
 export default function ClassificationTab() {
