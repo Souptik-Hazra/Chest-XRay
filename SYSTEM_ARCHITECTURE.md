@@ -1,134 +1,132 @@
-# ChestX AI — Multi-Agent Chest X-Ray Analysis System
-## MCA Dissertation Project Technical Documentation
+# ChestX AI — Current System Architecture
 
----
+## 1. Project scope
 
-## 1. System Overview & Architecture
+ChestX AI is a research prototype that accepts a single frontal chest radiograph and runs a fine-tuned DenseNet121 classifier. The output includes class scores, transformed-input sensitivity diagnostics, basic image-quality heuristics, Grad-CAM saliency when available, and a cautious text report.
 
-ChestX AI is a full-stack clinical decision support web application for chest radiograph analysis. It integrates a fine-tuned **DenseNet121** deep learning model with multi-view test-time augmentation (TTA), gradient-weighted class activation mapping (Grad-CAM), mathematical uncertainty estimation (Shannon entropy & confidence margin), objective image quality checks, and evidence-grounded clinical report synthesis.
+**This is not a medical device.** Outputs must not be used independently for diagnosis, triage, or treatment decisions. Softmax scores are not calibrated clinical probabilities, heuristic flags are not validated clinical quality/OOD measurements, and Grad-CAM is not lesion segmentation.
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                   CLINICAL RADIOGRAPH INPUT (PA / AP)                  │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-                  ┌─────────────────▼─────────────────┐
-                  │ Stage 1: Validation & Quality Gate │
-                  │  (Laplacian Blur & Exposure Check)│
-                  └─────────────────┬─────────────────┘
-                                    │
-            ┌───────────────────────┴───────────────────────┐
-            │ Stage 2: Multi-View Synthesis (5 TTA Views)   │
-            │ [Original, Bilinear, CLAHE, Crop, Augmented]  │
-            └───────────────────────┬───────────────────────┘
-                                    │
-            ┌───────────────────────▼───────────────────────┐
-            │ Stage 3: Multi-View DenseNet121 Inference     │
-            │  (Evaluation mode, torch.no_grad, 224x224)    │
-            └───────────────────────┬───────────────────────┘
-                                    │
-            ┌───────────────────────▼───────────────────────┐
-            │ Stage 4: Probability Consensus & Uncertainty  │
-            │  (Shannon Entropy & Cross-View Agreement)     │
-            └───────┬───────────────────────────────┬───────┘
-                    │                               │
-        ┌───────────▼───────────┐       ┌───────────▼───────────┐
-        │ Stage 5: Grad-CAM XAI │       │ Stage 6: Calibration  │
-        │ (denseblock4 saliency)│       │  & OOD Anomaly Check  │
-        └───────────┬───────────┘       └───────────┬───────────┘
-                    │                               │
-                    └───────────────┬───────────────┘
-                                    │
-            ┌───────────────────────▼───────────────────────┐
-            │ Stage 7: Evidence-Grounded Report Synthesis   │
-            │      (Findings, Limitations, Triage)          │
-            └───────────────────────┬───────────────────────┘
-                                    │
-            ┌───────────────────────▼───────────────────────┐
-            │ Storage: SQLite Metadata & Artifacts Cache    │
-            └───────────────────────────────────────────────┘
+The model checkpoint and related assets under the local `Pneumonia/` directory are external/local assets and are intentionally not tracked by Git. Do not modify that directory as part of frontend/backend cleanup.
+
+## 2. Current request flow
+
+```text
+Browser (React + Vite)
+  |
+  | POST /api/analyze (multipart field: image)
+  v
+FastAPI API
+  |
+  v
+LangGraph analysis workflow
+  |
+  +--> Inference node
+  |      DenseNet121 on five deterministic input variants
+  |      Mean class-score aggregation and cross-view agreement
+  |
+  +--> Diagnostics node
+  |      Pixel-level image-quality heuristics
+  |      Softmax entropy, margin and uncertainty heuristic flag
+  |
+  +--> Grad-CAM node
+  |      Saliency overlay encoded in memory as a data URL
+  |
+  +--> Report node
+         Optional Gemini report using metrics and image inputs
+         Deterministic evidence-bounded fallback if report generation fails
+  |
+  v
+JSON response returned to the active browser session
 ```
 
----
+Diagnostics and Grad-CAM are separate graph branches after inference; the report node runs after both branches complete.
 
-## 2. Model & Checkpoint Specifications
+## 3. Frontend
 
-- **Original Source**: `C:\Users\User\Downloads\Chest XRay\Pneumonia` (Preserved **100% untouched** in read-only mode).
-- **Weights File**: `models/densenet121_pneumonia.pth` (29.4 MB).
-- **Framework**: PyTorch (`torch>=2.0.0`, `torchvision>=0.15.0`).
-- **Base Backbone**: DenseNet121 pre-trained on ImageNet.
-- **Classifier Head Architecture**:
-  ```python
-  num_ftrs = model.classifier.in_features  # 1024
-  model.classifier = nn.Sequential(
-      nn.Linear(num_ftrs, 256),
-      nn.ReLU(inplace=False),  # Inplace disabled for Grad-CAM hook safety
-      nn.Dropout(0.3),
-      nn.Linear(256, 3)        # 3 target classes
-  )
-  ```
-- **Class Mapping**:
-  - `0`: **Bacterial Pneumonia** (`Bacterial_Pneumonia`)
-  - `1`: **Normal** (`Normal`)
-  - `2`: **Viral Pneumonia** (`Viral_Pneumonia`)
-- **Input Preprocessing**:
-  - Dimensions: $224 \times 224 \times 3$ (RGB)
-  - Normalization: ImageNet Mean `[0.485, 0.456, 0.406]`, Std `[0.229, 0.224, 0.225]`
-- **Target Conv Layer for Grad-CAM**: `model.features.denseblock4`
+- React application built with Vite.
+- Vite proxies `/api` requests to FastAPI at `http://127.0.0.1:8000`.
+- Main views: Overview, New Analysis, and Analysis Results.
+- Results include classifier findings, transformed-input sensitivity, Grad-CAM, a segmentation-unavailable notice, and the generated report.
+- The frontend does not synthesize a prediction when the backend is unavailable.
+- Uploaded images are previewed in the browser. The browser session holds the current result; results are not persisted as saved history.
 
----
+## 4. Backend and current API
 
-## 3. Empirical Test Set Evaluation Metrics
+The FastAPI application is started with `python backend/run.py` and defaults to `http://127.0.0.1:8000`. Interactive API documentation is available at `/docs`.
 
-Evaluated on **587 held-out stratified test radiographs**:
-
-| Category | Precision | Recall (Sensitivity) | F1-Score | Support |
-|---|---|---|---|---|
-| **Normal** | 85.0% | **96.0%** | 91.0% | 159 |
-| **Bacterial Pneumonia** | **87.0%** | 74.0% | 80.0% | 278 |
-| **Viral Pneumonia** | 62.0% | 69.0% | 65.0% | 150 |
-| **Overall Weighted** | **80.0%** | **79.0%** | **79.0%** | **587** |
-
-- **Validation Accuracy**: `81.88%`
-- **Normal Class Specificity**: `96% Recall` with zero false positives misclassified as Bacterial Pneumonia.
-
----
-
-## 4. Backend Endpoints (FastAPI)
-
-Running at `http://127.0.0.1:8000`:
-
-| Method | Endpoint | Description |
+| Method | Endpoint | Purpose |
 |---|---|---|
-| `GET` | `/api/health` | Health check & model status |
-| `GET` | `/api/model/status` | Model loading telemetry & active device |
-| `GET` | `/api/model/info` | Architecture metadata & empirical benchmarks |
-| `POST` | `/api/analyze` | Full multi-agent pipeline on uploaded radiograph |
-| `GET` | `/api/analysis/{id}` | Retrieves persisted analysis by ID |
-| `GET` | `/api/analysis/{id}/events` | Real-time SSE streaming for workflow progress |
-| `GET` | `/api/history` | Historical analyses paginated from SQLite |
-| `GET` | `/api/samples` | Verified test set sample radiographs for 1-click testing |
-| `GET` | `/api/samples/{cat}/{file}` | Streams raw sample test image |
-| `GET` | `/api/artifacts/{filename}` | Serves generated Grad-CAM heatmap overlays |
+| GET | `/` | Basic application information and endpoint links |
+| GET | `/api/health` | Model-loaded status and device |
+| GET | `/api/model/status` | Model loading state and checkpoint path |
+| GET | `/api/model/info` | Model architecture metadata and available baseline metrics |
+| POST | `/api/analyze` | Run analysis on an uploaded image |
+| GET | `/api/analysis/{analysis_id}/events` | Server-Sent Events for workflow progress, if a client subscribes |
 
----
+There are no current API endpoints for database-backed history, fetching an individual persisted analysis, saved artifact files, sample-image browsing, or model-insights dashboards.
 
-## 5. How to Run the System
+### Analysis request
 
-### Starting the Backend
+- Content type: `multipart/form-data`
+- Required field: `image`
+- Accepted formats in the backend: formats supported by Pillow that pass image verification; the frontend currently allows PNG and JPEG.
+- Maximum request image size: 20 MiB.
+
+The response includes a case ID, timestamp, predicted class, class scores, heuristic findings, per-view inference results, report fields, and a Grad-CAM data URL when available.
+
+## 5. Model and preprocessing
+
+- Backbone: fine-tuned DenseNet121 with a three-class output.
+- Display classes: Normal, Bacterial Pneumonia, Viral Pneumonia.
+- The classifier runs on five deterministic variants: original, resized, contrast-adjusted, center-cropped, and mildly rotated/brightened.
+- The per-view probabilities are averaged to form the aggregate score.
+- Agreement is a descriptive measure of variation across transformed inputs. It is not an independent ensemble or proof of improved accuracy.
+- The current image-quality checks use Laplacian variance and pixel intensity heuristics.
+- Entropy and confidence margin describe the model scores; the OOD flag is a heuristic, not a validated OOD detector.
+- Grad-CAM visualizes regions influencing a model score. It does not establish pathology or delineate a lesion.
+
+The preparation-view labels in the UI are visual previews. They should not be treated as an exact reproduction of every backend tensor transformation.
+
+## 6. Report generation and privacy
+
+If `GOOGLE_API_KEY` or `GEMINI_API_KEY` is configured, the report service attempts to use the configured Gemini model (environment variable `CHESTX_REPORT_MODEL`). When that call fails or no key is configured, it returns a deterministic summary of the model outputs.
+
+When Gemini reporting is enabled, the original radiograph and Grad-CAM overlay may be sent to Google's Gemini API. Obtain any required consent and follow applicable privacy and data-handling requirements before using sensitive images.
+
+The application does not persist uploaded radiographs, Grad-CAM images, or analysis records to a local database or storage directory. The response is returned to the active browser session and is not available as saved history after a refresh or restart. The SSE workflow hub temporarily retains events in process memory; its lifecycle and retention should be maintained carefully.
+
+## 7. Configuration
+
+Relevant environment variables:
+
+- `MODEL_DIR`: directory containing the local model assets.
+- `MODEL_PATH`: optional explicit checkpoint path.
+- `MODEL_DEVICE`: inference device (defaults to CPU).
+- `API_HOST`, `API_PORT`: backend bind address and port.
+- `FRONTEND_ORIGIN`: configured frontend origin.
+- `GOOGLE_API_KEY` or `GEMINI_API_KEY`: optional Gemini credentials.
+- `CHESTX_REPORT_MODEL`: optional Gemini model override.
+- `VITE_API_BASE_URL`: frontend API base path (defaults to `/api`).
+
+Keep credentials in an untracked local `.env` file. Never commit secrets.
+
+## 8. Running checks
+
+From the repository root:
+
 ```bash
-python backend/run.py
+npm install
+npm run build
+npm run lint
+python -m unittest discover -s backend/tests
 ```
-*(Runs on `http://127.0.0.1:8000` with interactive Swagger docs at `http://127.0.0.1:8000/docs`)*
 
-### Starting the Frontend
-```bash
-npm run dev
-```
-*(Runs on `http://localhost:5173/` with automated reverse-proxy to FastAPI)*
+Run model-checkpoint integration tests separately on a machine where the local model assets are available. Unit tests should not require the private checkpoint.
 
-### Running Backend Verification Tests
-```bash
-python -m unittest backend/tests/test_backend.py
-```
-*(Executes 6 unit tests validating checkpoint loading, inference, Grad-CAM, multi-view, and reporting)*
+## 9. Known boundaries
+
+- No saved analysis history or SQLite-backed records.
+- No active segmentation model; the UI only explains that segmentation was not performed.
+- No validated clinical calibration, OOD detection, or triage system.
+- No claim that transformed-input aggregation improves clinical accuracy.
+- Workflow SSE exists in the backend; verify client subscription and cleanup before relying on it for a live progress UI.
