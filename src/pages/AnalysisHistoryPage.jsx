@@ -22,7 +22,7 @@ export default function AnalysisHistoryPage({ viewHistoryItem }) {
     <PageHeader title="Analysis History" badge="DATABASE RECORDS ONLY" subtitle="Persisted analyses returned by the backend" className="history-header">
       <div className="history-search"><Search /><input value={searchTerm} onChange={e=>{setSearchTerm(e.target.value);setPage(1);}} placeholder="Search ID, filename, class…"/></div>
     </PageHeader>
-    <Card padding="p-0" className="history-card">
+    <Card padding="card-padding-none" className="history-card">
       <div className="history-table-wrap">
         {loading ? <p className="history-empty">Loading history…</p> : error ? <p role="alert" className="history-empty history-error">{error}</p> : rows.length === 0 ? <div className="history-empty"><Activity />{records.length ? 'No matching records.' : 'No analyses saved yet.'}</div> :
         <table className="history-table"><thead><tr>{['Case ID','Date / Time','Filename','Predicted Class','Score','Uncertainty Flag','Status',''].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row=><tr key={row.id}><td className="page-mono">{row.id}</td><td>{formatDate(row.date || row.timestamp)}</td><td className="page-filename">{row.filename}</td><td><ClassBadge predictedClass={row.predictedClass}/></td><td>{(Number(row.confidence)*100).toFixed(1)}%</td><td>{row.oodFlag ? <span className="history-warning"><AlertTriangle />Heuristic flag</span> : <span className="history-muted">Not flagged</span>}</td><td><span className="history-success"><CheckCircle2 />{row.status || 'Saved'}</span></td><td className="page-align-right"><button onClick={()=>viewHistoryItem(row)} className="page-link">Inspect</button></td></tr>)}</tbody></table>}
