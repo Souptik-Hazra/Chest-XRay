@@ -15,6 +15,7 @@ from PIL import Image, ImageOps
 from ..core.config import settings
 
 logger = logging.getLogger(__name__)
+PREVIEW_MAX_SIZE = (1024, 1024)
 
 
 def build_segmentation_artifacts(
@@ -22,21 +23,26 @@ def build_segmentation_artifacts(
     mask_probabilities: np.ndarray,
     threshold: float = 0.5,
 ) -> dict[str, Any]:
+    if not np.isfinite(threshold) or not 0.0 <= threshold <= 1.0:
+        raise ValueError("Segmentation threshold must be between 0 and 1.")
+
     probabilities = np.asarray(mask_probabilities, dtype=np.float32).squeeze()
-    if probabilities.ndim != 2 or not np.isfinite(probabilities).all():
+    if probabilities.ndim != 2 or probabilities.size == 0 or not np.isfinite(probabilities).all():
         raise ValueError("Segmentation model returned an invalid probability map.")
     if probabilities.min() < 0 or probabilities.max() > 1:
         raise ValueError("Segmentation model output must be probabilities in [0, 1].")
+    if image.width < 1 or image.height < 1:
+        raise ValueError("Input image must have non-zero dimensions.")
 
     binary = probabilities >= threshold
     area_percent = float(binary.mean() * 100.0)
-    width, height = image.size
-    mask_image = Image.fromarray(binary.astype(np.uint8) * 255, mode="L")
-    mask_image = mask_image.resize((width, height), Image.Resampling.NEAREST)
 
+    # Bound memory by resizing the model mask directly to the bounded display image.
     preview = image.convert("RGB").copy()
-    preview.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-    mask_preview = mask_image.resize(preview.size, Image.Resampling.NEAREST)
+    preview.thumbnail(PREVIEW_MAX_SIZE, Image.Resampling.LANCZOS)
+    mask_preview = Image.fromarray(binary.astype(np.uint8) * 255, mode="L")
+    mask_preview = mask_preview.resize(preview.size, Image.Resampling.NEAREST)
+
     mask_array = np.asarray(mask_preview) > 0
     original_array = np.asarray(preview).copy()
     overlay_array = original_array.copy()
@@ -59,9 +65,9 @@ def build_segmentation_artifacts(
         "overlayUrl": data_url(Image.fromarray(overlay_array)),
         "areaPercent": round(area_percent, 3),
         "meanMaskScore": round(float(selected.mean()) if selected.size else 0.0, 4),
-        "threshold": threshold,
-        "imageWidth": width,
-        "imageHeight": height,
+        "threshold": float(threshold),
+        "imageWidth": image.width,
+        "imageHeight": image.height,
         "modelId": settings.SEGMENTATION_MODEL_ID,
         "limitations": (
             "Approximate binary opacity mask from a separate pretrained model. "
@@ -99,7 +105,11 @@ class LesionSegmentationService:
             self.model.eval()
             self.is_loaded = True
             self.load_error = None
-            logger.info("Loaded optional opacity segmentation model %s", settings.SEGMENTATION_MODEL_ID)
+            logger.info(
+                "Loaded optional opacity segmentation model %s at revision %s",
+                settings.SEGMENTATION_MODEL_ID,
+                settings.SEGMENTATION_MODEL_REVISION,
+            )
         except Exception as exc:
             self.model = None
             self.is_loaded = False
@@ -108,29 +118,50 @@ class LesionSegmentationService:
 
     def segment(self, image: Image.Image) -> dict[str, Any]:
         if not settings.SEGMENTATION_ENABLED:
-            return {"status": "disabled", "message": "Set SEGMENTATION_ENABLED=true to enable opacity segmentation."}
+            return {
+                "status": "disabled",
+                "message": "Set SEGMENTATION_ENABLED=true to enable opacity segmentation.",
+            }
         if not self.is_loaded or self.model is None:
-            return {"status": "unavailable", "message": "The optional segmentation model is not available."}
+            return {
+                "status": "unavailable",
+                "message": "The optional segmentation model is not available.",
+            }
 
         try:
             import torch
 
-            height, width = self.model.config.img_size
+            image_size = getattr(self.model.config, "img_size", None)
+            if not isinstance(image_size, (tuple, list)) or len(image_size) != 2:
+                raise ValueError("Segmentation model has an invalid configured input size.")
+            height, width = (int(value) for value in image_size)
+            if height < 1 or width < 1 or height * width > 4_194_304:
+                raise ValueError("Segmentation model input size is outside supported limits.")
+
             grayscale = ImageOps.grayscale(image).resize(
-                (int(width), int(height)), Image.Resampling.BILINEAR
+                (width, height), Image.Resampling.BILINEAR
             )
             pixels = np.asarray(grayscale, dtype=np.float32)
             tensor = torch.from_numpy(pixels).unsqueeze(0).unsqueeze(0).to(self.device)
             with torch.inference_mode():
                 output = self.model(tensor)
             mask = output.get("mask") if isinstance(output, dict) else None
-            if mask is None or mask.ndim != 4 or mask.shape[0] != 1 or mask.shape[1] != 1:
+            if (
+                mask is None
+                or not hasattr(mask, "ndim")
+                or mask.ndim != 4
+                or mask.shape[0] != 1
+                or mask.shape[1] != 1
+            ):
                 raise ValueError("Segmentation model returned an unexpected mask shape.")
             probabilities = mask[0, 0].detach().float().cpu().numpy()
             return build_segmentation_artifacts(image, probabilities)
         except Exception:
             logger.exception("Opacity segmentation inference failed")
-            return {"status": "unavailable", "message": "Segmentation inference failed; see backend logs."}
+            return {
+                "status": "unavailable",
+                "message": "Segmentation inference failed; see backend logs.",
+            }
 
 
 lesion_segmentation_service = LesionSegmentationService()
