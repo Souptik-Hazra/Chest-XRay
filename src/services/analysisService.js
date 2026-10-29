@@ -17,8 +17,6 @@ export async function checkBackendHealth() {
   catch (error) { return { online: false, error: error.message }; }
 }
 
-export const getModelStatus = () => requestJson('/model/status');
-
 export async function analyzeImage(file) {
   if (!(file instanceof File) || !file.size || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
     throw new Error('Choose a non-empty PNG, JPEG, or WebP image before analysis.');
@@ -36,12 +34,6 @@ export async function getAnalysisHistory(params = {}) {
 export async function getAnalysisById(id) {
   if (!id) throw new Error('An analysis ID is required.');
   return requestJson(`/analysis/${encodeURIComponent(id)}`);
-}
-
-export async function getModelInsights() {
-  const data = await requestJson('/model/info');
-  if (!data.isLoaded) throw new Error(data.loadError || 'The DenseNet121 checkpoint is not loaded.');
-  return data.metrics ?? null;
 }
 
 function normalizeAnalysisResult(data) {
