@@ -35,6 +35,7 @@ class WorkflowEventHub:
             listeners.remove(queue)
         if not listeners:
             self._listeners.pop(analysis_id, None)
+            self._history.pop(analysis_id, None)
 
 
 workflow_hub = WorkflowEventHub()

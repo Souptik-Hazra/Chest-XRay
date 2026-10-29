@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { analyzeImage, checkBackendHealth, getAnalysisById } from '../services/analysisService.js';
+import { analyzeImage, checkBackendHealth } from '../services/analysisService.js';
 
 export function useAppState() {
   const [activePage, setActivePage] = useState('overview');
@@ -53,19 +53,6 @@ export function useAppState() {
     }
   };
 
-  const viewHistoryItem = async (item) => {
-    if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
-    resultPreviewRef.current = null;
-    try {
-      const record = await getAnalysisById(item.id);
-      setAnalysisResult(record);
-      setAnalysisError('');
-      setActivePage('results');
-    } catch (err) {
-      setAnalysisError(err.message || 'Could not load this analysis record.');
-    }
-  };
-
   useEffect(() => () => { if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current); }, []);
 
   return {
@@ -73,6 +60,6 @@ export function useAppState() {
     uploadedFile, setUploadedFile: handleSetUploadedFile, filePreviewUrl,
     isAnalyzing, analysisError, activeResultTab, setActiveResultTab,
     isBackendConnected, loadDemoResult, startNewAnalysis,
-    runAnalysis, viewHistoryItem,
+    runAnalysis,
   };
 }

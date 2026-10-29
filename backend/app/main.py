@@ -1,17 +1,13 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from .core.config import settings
-from .core.database import init_db
 from .models.densenet import model_service
 from .api.routes import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize SQLite database
-    init_db()
     # Eagerly load model weights from read-only directory
     model_service.load()
     yield

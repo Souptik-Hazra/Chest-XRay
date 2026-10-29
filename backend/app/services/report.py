@@ -37,7 +37,7 @@ def _gemini_summary(
     case_id: str,
     filename: str,
     original_image: Any = None,
-    gradcam_image_path: str | Path | None = None,
+    gradcam_image: Any = None,
 ) -> str | None:
     """Generate an evidence-bounded report from metrics and optional X-ray/Grad-CAM images."""
     if not (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
@@ -88,15 +88,15 @@ def _gemini_summary(
                 "image_url": f"data:image/jpeg;base64,{image_data}",
             })
             message_content.append({"type": "text", "text": "Image 1: original uploaded chest radiograph."})
-        if gradcam_image_path:
-            gradcam_path = Path(gradcam_image_path)
-            if gradcam_path.is_file():
-                image_data = base64.b64encode(gradcam_path.read_bytes()).decode("ascii")
-                message_content.append({
-                    "type": "image_url",
-                    "image_url": f"data:image/png;base64,{image_data}",
-                })
-                message_content.append({"type": "text", "text": "Image 2: Grad-CAM saliency overlay for the model prediction."})
+        if gradcam_image is not None:
+            gradcam_buffer = BytesIO()
+            gradcam_image.convert("RGB").save(gradcam_buffer, format="PNG")
+            image_data = base64.b64encode(gradcam_buffer.getvalue()).decode("ascii")
+            message_content.append({
+                "type": "image_url",
+                "image_url": f"data:image/png;base64,{image_data}",
+            })
+            message_content.append({"type": "text", "text": "Image 2: Grad-CAM saliency overlay for the model prediction."})
 
         llm = ChatGoogleGenerativeAI(
             model=model_name,
@@ -128,11 +128,11 @@ def generate_clinical_report(
     case_id: str,
     filename: str,
     original_image: Any = None,
-    gradcam_image_path: str | Path | None = None,
+    gradcam_image: Any = None,
 ) -> Dict[str, str]:
     summary = _gemini_summary(
         predicted_class, confidence, probabilities, findings, case_id, filename,
-        original_image=original_image, gradcam_image_path=gradcam_image_path,
+        original_image=original_image, gradcam_image=gradcam_image,
     )
     report_source = "gemini_flash_lite" if summary else "deterministic_grounded"
     if not summary:
