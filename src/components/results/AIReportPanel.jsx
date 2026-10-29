@@ -28,7 +28,7 @@ export default function AIReportPanel({ analysisResult }) {
     link.href = url; link.download = `ChestX_Report_${id}.txt`; link.click(); URL.revokeObjectURL(url);
   };
   return <div className="ai-report-panel">
-    <div className="ai-report-toolbar"><div className="ai-report-title"><FileText className="ai-report-icon"/><span>Model Output Summary</span><span className="ai-report-source">{report.reportSource==='langchain'?'LangChain summary':'Evidence-bounded summary'}</span></div>
+    <div className="ai-report-toolbar"><div className="ai-report-title"><FileText className="ai-report-icon"/><span>Model Output Summary</span><span className="ai-report-source">{report.reportSource==='gemini_flash_lite' ? `Gemini ${report.reportModel || 'Flash-Lite'} · LangChain` : 'Evidence-bounded summary'}</span></div>
       <div className="ai-report-actions"><button onClick={handleCopy} className="ai-report-button">{copied?<Check className="ai-report-action-icon"/>:<Copy className="ai-report-action-icon"/>}{copied?'Copied':'Copy'}</button><button onClick={handleDownload} className="ai-report-button ai-report-button--primary"><Download className="ai-report-action-icon"/>Export TXT</button></div>
     </div>
     <Card padding="card-padding-lg" className="ai-report-content">
