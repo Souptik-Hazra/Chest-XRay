@@ -17,6 +17,7 @@ from ..services.multiview import run_multiview_inference
 from ..services.quality_ood import check_image_quality, compute_uncertainty_metrics
 from ..services.report import generate_clinical_report
 from ..services.analysis_graph import build_analysis_graph
+from ..services.lesion_segmentation import lesion_segmentation_service
 from ..schemas.analysis import AnalysisResponse, ModelInfoResponse, HealthResponse
 
 router = APIRouter()
@@ -163,7 +164,7 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         "probabilities": [{"label": p["label"], "value": round(p["value"], 6), "color": p["color"]}
                           for p in result["probabilities"]],
         "findings": result["findings"], "multiview": result["multiview_result"]["views"],
-        "report": result["report"], "gradcamUrl": result.get("gradcam_url"), "status": "completed",
+        "report": result["report"], "gradcamUrl": result.get("gradcam_url"),\n        "segmentation": lesion_segmentation_service.segment(img), "status": "completed",
     }
     return record
 
