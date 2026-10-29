@@ -9,7 +9,7 @@ export default function ImagePreparationPanel({ filePreviewUrl = null, selectedV
   const currentView = selectedViewId ?? internalView;
   const handleSelect = view => { setInternalView(view.id); onSelectView(view); };
   const activeView = PREPARATION_VIEWS.find(view => view.id === currentView) || PREPARATION_VIEWS[0];
-  const renderPreview = (view, thumbnail = false) => <div className="preparation-preview" style={{filter:view.filter !== 'none' && !view.filter.includes('scale') ? view.filter : undefined,transform:view.filter.includes('scale') ? (thumbnail ? 'scale(1.2)' : 'scale(1.25)') : undefined}}>
+  const renderPreview = (view, thumbnail = false) => <div className="preparation-preview" style={{filter:view.filter !== 'none' && !view.filter.includes('scale') ? view.filter : undefined,transform:view.filter.includes('scale') ? (thumbnail ? 'scale(1.2)' : 'scale(1.25)') : view.id === 'augmented' ? 'rotate(3deg)' : undefined}}>
     {filePreviewUrl ? <img src={filePreviewUrl} alt={thumbnail ? view.name : 'Prepared radiograph'} className={thumbnail ? 'preparation-image preparation-image--cover' : 'preparation-image'}/> : <div className="preparation-empty">Upload a radiograph to preview preprocessing</div>}
   </div>;
   return <Card padding={isCompact ? 'card-padding-compact' : 'card-padding-lg-gap'} className="preparation-panel">
