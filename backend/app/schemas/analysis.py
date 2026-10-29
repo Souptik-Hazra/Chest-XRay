@@ -23,6 +23,8 @@ class ReportSchema(BaseModel):
     segmentationNote: Optional[str] = None
     limitations: Optional[str] = None
     reviewRecommendation: Optional[str] = None
+    reportSource: Optional[str] = None
+    reportModel: Optional[str] = None
 
 class AnalysisResponse(BaseModel):
     id: str
