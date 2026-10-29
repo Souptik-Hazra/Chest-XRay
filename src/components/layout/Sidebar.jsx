@@ -1,14 +1,14 @@
 import React from 'react';
-import { LayoutDashboard, Plus, Activity } from 'lucide-react';
+import { Plus, Activity } from 'lucide-react';
 import { cn } from '../../lib/utils.js';
 import './layout.css';
 
 export default function Sidebar({ activePage, setActivePage }) {
   const navItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'new-analysis', label: 'New Analysis', icon: Plus, badge: 'Upload' },
     { id: 'results', label: 'Analysis Results', icon: Activity },
   ];
+
   return (
     <aside className="app-sidebar">
       <div className="app-sidebar__nav panel-scroll">
