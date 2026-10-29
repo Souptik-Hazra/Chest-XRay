@@ -22,6 +22,9 @@ class TestSegmentationArtifacts(unittest.TestCase):
         self.assertIn("base64,", result["maskUrl"])
         self.assertIn("base64,", result["overlayUrl"])
         self.assertAlmostEqual(result["areaPercent"], 6.25, places=2)
+        self.assertEqual(result["thresholdAreaPercent"]["0.3"], 6.25)
+        self.assertEqual(result["thresholdAreaPercent"]["0.5"], 6.25)
+        self.assertEqual(result["thresholdAreaPercent"]["0.7"], 6.25)
         self.assertEqual((result["imageWidth"], result["imageHeight"]), (64, 48))
 
     def test_empty_mask_is_not_reported_as_a_detected_region(self):
@@ -31,6 +34,7 @@ class TestSegmentationArtifacts(unittest.TestCase):
         self.assertEqual(result["status"], "no_region_detected")
         self.assertEqual(result["areaPercent"], 0.0)
         self.assertEqual(result["meanMaskScore"], 0.0)
+        self.assertEqual(result["thresholdAreaPercent"], {"0.3": 0.0, "0.5": 0.0, "0.7": 0.0})
 
     def test_invalid_probability_values_are_rejected(self):
         with self.assertRaises(ValueError):

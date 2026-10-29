@@ -37,6 +37,11 @@ def build_segmentation_artifacts(
 
     binary = probabilities >= threshold
     area_percent = float(binary.mean() * 100.0)
+    # Fixed-threshold coverage exposes masks that are highly threshold-sensitive.
+    threshold_area_percent = {
+        str(value): round(float((probabilities >= value).mean() * 100.0), 3)
+        for value in (0.3, 0.5, 0.7)
+    }
 
     # Bound memory by resizing the model mask directly to the bounded display image.
     preview = image.convert("RGB").copy()
@@ -65,6 +70,7 @@ def build_segmentation_artifacts(
         "maskUrl": data_url(mask_preview),
         "overlayUrl": data_url(Image.fromarray(overlay_array)),
         "areaPercent": round(area_percent, 3),
+        "thresholdAreaPercent": threshold_area_percent,
         "meanMaskScore": round(float(selected.mean()) if selected.size else 0.0, 4),
         "threshold": float(threshold),
         "imageWidth": image.width,

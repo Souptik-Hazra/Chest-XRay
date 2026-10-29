@@ -117,29 +117,34 @@ async def analyze_radiograph(image: UploadFile = File(...)):
 
     def gradcam_node(state):
         started = time.perf_counter()
-        tensor = model_service.preprocess_transform(state["image"]).unsqueeze(0).to(model_service.device)
-        target_idx = model_service.display_classes.index(state["predicted_class"])
-        cam = GradCAM(model_service.model)
+        cam = None
         try:
-            heatmap, pred_idx, _ = cam.generate_heatmap(tensor, target_class=target_idx)
-        finally:
-            cam.remove_hooks()
-        if not np.isfinite(heatmap).all() or float(np.max(heatmap)) <= 0:
+            tensor = model_service.preprocess_transform(state["image"]).unsqueeze(0).to(model_service.device)
+            target_idx = model_service.display_classes.index(state["predicted_class"])
+            cam = GradCAM(model_service.model)
+            heatmap, _, _ = cam.generate_heatmap(tensor, target_class=target_idx)
+            if not np.isfinite(heatmap).all() or float(np.max(heatmap)) <= 0:
+                return {"gradcam_url": None, "gradcam_available": False,
+                        "gradcam_duration": round(time.perf_counter() - started, 3)}
+            overlay = Image.fromarray(
+                GradCAM.overlay_heatmap(np.array(state["image"].convert("RGB")), heatmap, alpha=0.45)
+            )
+            buffer = io.BytesIO()
+            overlay.save(buffer, format="PNG")
+            overlay_data = base64.b64encode(buffer.getvalue()).decode("ascii")
+            return {
+                "gradcam_url": f"data:image/png;base64,{overlay_data}",
+                "gradcam_image": overlay,
+                "gradcam_available": True,
+                "gradcam_duration": round(time.perf_counter() - started, 3),
+            }
+        except Exception:
+            logger.exception("Grad-CAM generation failed for this analysis")
             return {"gradcam_url": None, "gradcam_available": False,
                     "gradcam_duration": round(time.perf_counter() - started, 3)}
-        overlay = Image.fromarray(
-            GradCAM.overlay_heatmap(np.array(state["image"].convert("RGB")), heatmap, alpha=0.45)
-        )
-        buffer = io.BytesIO()
-        overlay.save(buffer, format="PNG")
-        overlay_data = base64.b64encode(buffer.getvalue()).decode("ascii")
-        duration = round(time.perf_counter() - started, 3)
-        return {
-            "gradcam_url": f"data:image/png;base64,{overlay_data}",
-            "gradcam_image": overlay,
-            "gradcam_available": True,
-            "gradcam_duration": duration,
-        }
+        finally:
+            if cam is not None:
+                cam.remove_hooks()
 
     def report_node(state):
         findings = {**state["findings"], "gradcamAvailable": state.get("gradcam_available", False)}

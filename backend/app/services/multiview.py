@@ -39,6 +39,28 @@ def generate_multi_views(img_pil: Image.Image) -> List[Tuple[str, str, Image.Ima
     
     return views
 
+def summarize_view_agreement(predicted_classes: List[str], display_classes: List[str]) -> Dict[str, Any]:
+    """Summarize class-vote consistency across transformed views, not model correctness."""
+    if not predicted_classes:
+        raise ValueError("At least one view prediction is required.")
+    counts = {
+        label: sum(prediction == label for prediction in predicted_classes)
+        for label in display_classes
+    }
+    agreement_fraction = max(counts.values(), default=0) / len(predicted_classes)
+    if agreement_fraction >= 0.8:
+        agreement = "High"
+    elif agreement_fraction >= 0.6:
+        agreement = "Moderate"
+    else:
+        agreement = "Low (Borderline Disagreement)"
+    return {
+        "crossViewAgreement": agreement,
+        "classVoteAgreement": round(agreement_fraction, 4),
+        "classVoteCounts": counts,
+    }
+
+
 def run_multiview_inference(img_pil: Image.Image) -> Dict[str, Any]:
     """
     Executes DenseNet121 inference across all 5 synthesized views,
@@ -81,15 +103,13 @@ def run_multiview_inference(img_pil: Image.Image) -> Dict[str, Any]:
     consensus_class = display_classes[consensus_idx]
     consensus_confidence = float(mean_probs[consensus_idx])
     
-    # Cross-view agreement metric
-    # Higher agreement when variance across view predictions is low
+    # Vote agreement measures class consistency across transformed views.
+    # Probability dispersion is reported separately; neither metric proves correctness.
+    vote_summary = summarize_view_agreement(
+        [view["predictedClass"] for view in view_results],
+        display_classes,
+    )
     avg_std = float(np.mean(std_probs))
-    if avg_std < 0.05:
-        agreement = "High"
-    elif avg_std < 0.12:
-        agreement = "Moderate"
-    else:
-        agreement = "Low (Borderline Disagreement)"
 
     return {
         "views": view_results,
@@ -106,6 +126,6 @@ def run_multiview_inference(img_pil: Image.Image) -> Dict[str, Any]:
             }
             for i in range(len(display_classes))
         ],
-        "crossViewAgreement": agreement,
+        **vote_summary,
         "crossViewStdDev": round(avg_std, 4)
     }
