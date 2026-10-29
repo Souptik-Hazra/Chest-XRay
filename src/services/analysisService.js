@@ -13,26 +13,19 @@ async function requestJson(path, options = {}) {
 }
 
 export async function checkBackendHealth() {
-  try {
-    const data = await requestJson('/health');
-    return { online: true, ...data };
-  } catch (error) {
-    return { online: false, error: error.message };
-  }
+  try { return { online: true, ...await requestJson('/health') }; }
+  catch (error) { return { online: false, error: error.message }; }
 }
 
-export async function getModelStatus() {
-  return requestJson('/model/status');
-}
+export const getModelStatus = () => requestJson('/model/status');
 
 export async function analyzeImage(file) {
   if (!(file instanceof File) || !file.size || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
     throw new Error('Choose a non-empty PNG, JPEG, or WebP image before analysis.');
   }
-  const formData = new FormData();
-  formData.append('image', file);
-  const data = await requestJson('/analyze', { method: 'POST', headers: {}, body: formData });
-  return normalizeAnalysisResult(data);
+  const body = new FormData();
+  body.append('image', file);
+  return normalizeAnalysisResult(await requestJson('/analyze', { method: 'POST', headers: {}, body }));
 }
 
 export async function getAnalysisHistory(params = {}) {
@@ -51,35 +44,15 @@ export async function getModelInsights() {
   return data.metrics ?? null;
 }
 
-export async function fetchSampleImages() {
-  return requestJson('/samples');
-}
-
-export async function fetchSampleFile(sample) {
-  if (!sample?.url || !sample?.filename) throw new Error('The backend returned an invalid sample descriptor.');
-  const response = await fetch(sample.url.startsWith('http') ? sample.url : `${API_BASE.replace(/\/api$/, '')}${sample.url}`);
-  if (!response.ok) throw new Error(`Sample download failed (${response.status}).`);
-  const blob = await response.blob();
-  if (!blob.size || !blob.type.startsWith('image/')) throw new Error('The selected sample is not a valid image.');
-  return new File([blob], sample.filename, { type: blob.type });
-}
-
 function normalizeAnalysisResult(data) {
   const required = ['id', 'filename', 'timestamp', 'predictedClass', 'confidence', 'probabilities', 'findings', 'report'];
-  const missing = required.filter((key) => data?.[key] === undefined || data?.[key] === null);
+  const missing = required.filter(key => data?.[key] == null);
   if (missing.length) throw new Error(`Malformed analysis response; missing: ${missing.join(', ')}`);
-  if (!Array.isArray(data.probabilities) || data.probabilities.length !== 3 ||
-      data.probabilities.some((p) => typeof p.value !== 'number' || !Number.isFinite(p.value))) {
+  if (!Array.isArray(data.probabilities) || data.probabilities.length !== 3 || data.probabilities.some(p => typeof p.value !== 'number' || !Number.isFinite(p.value))) {
     throw new Error('Malformed analysis response: expected three numeric class probabilities.');
   }
   if (!Number.isFinite(Number(data.confidence)) || !data.findings || !data.report?.summary) {
     throw new Error('Malformed analysis response: confidence, findings, or report is invalid.');
   }
-  return {
-    ...data,
-    isDemoData: data.isDemoData === true,
-    confidence: Number(data.confidence),
-    multiview: data.multiview ?? null,
-    gradcamUrl: data.gradcamUrl ?? null,
-  };
+  return { ...data, confidence: Number(data.confidence), multiview: data.multiview ?? null, gradcamUrl: data.gradcamUrl ?? null };
 }

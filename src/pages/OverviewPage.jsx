@@ -1,32 +1,18 @@
-import React, { useState } from 'react';
-import { Plus, ArrowRight, Activity, Clock, AlertCircle } from 'lucide-react';
+import React from 'react';
+import { Plus, ArrowRight, Clock, AlertCircle } from 'lucide-react';
 import { CLASSES, CLASS_COLORS } from '../data/demoData.js';
 import { useAnalysisHistory } from '../hooks/useAnalysisHistory.js';
-import { useSampleRadiographs } from '../hooks/useSampleRadiographs.js';
 import { PageLayout, PageHeader, StatCard, Card, ClassBadge } from '../components/shared/index.js';
 
-export default function OverviewPage({ startNewAnalysis, viewHistoryItem, setActivePage, runAnalysis, analysisError = '' }) {
-  const { records, loading, error, refresh } = useAnalysisHistory(4);
-  const { loadRandomSample } = useSampleRadiographs();
-  const [quickTestError, setQuickTestError] = useState('');
-
-  const handleQuickTest = async () => {
-    setQuickTestError('');
-    try {
-      await runAnalysis(await loadRandomSample());
-      refresh();
-    } catch (err) {
-      setQuickTestError(err.message || 'Could not run a real sample analysis.');
-    }
-  };
+export default function OverviewPage({ startNewAnalysis, viewHistoryItem, setActivePage, analysisError = '' }) {
+  const { records, loading, error } = useAnalysisHistory(4);
 
   return (
     <PageLayout>
       <PageHeader title="Clinical Radiograph Analysis" badge="BACKEND-DRIVEN STATUS" subtitle="DenseNet121 inference, uncertainty checks and Grad-CAM when available" className="mb-4">
-        <button onClick={handleQuickTest} className="px-3 py-1.5 rounded-lg border border-slate-700 text-xs flex items-center gap-1.5"><Activity className="w-3.5 h-3.5"/>Quick Test Real Radiograph</button>
         <button onClick={startNewAnalysis} className="px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold flex items-center gap-1.5"><Plus className="w-4 h-4"/>New Analysis</button>
       </PageHeader>
-      {(quickTestError || analysisError || error) && <p role="alert" className="text-xs text-amber-400 mb-2"><AlertCircle className="inline w-3 h-3 mr-1"/>{quickTestError || analysisError || error}</p>}
+      {(analysisError || error) && <p role="alert" className="text-xs text-amber-400 mb-2"><AlertCircle className="inline w-3 h-3 mr-1"/>{analysisError || error}</p>}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0 overflow-hidden">
         <div className="lg:col-span-7 flex flex-col gap-3 min-h-0 overflow-hidden">
           <div className="grid grid-cols-3 gap-2.5 flex-shrink-0">
@@ -43,7 +29,7 @@ export default function OverviewPage({ startNewAnalysis, viewHistoryItem, setAct
         </div>
         <div className="lg:col-span-5 flex flex-col gap-3 min-h-0 overflow-hidden">
           <Card><h3 className="text-xs font-semibold mb-2.5">Classifier Output Classes</h3><div className="grid grid-cols-3 gap-2">{CLASSES.map(cls=><div key={cls} className="p-2 rounded-lg border border-slate-700"><span className="block w-2 h-2 rounded-full mb-2" style={{backgroundColor:CLASS_COLORS[cls]}}/><span className="text-[11px] font-semibold">{cls}</span></div>)}</div></Card>
-          <Card className="flex-1 min-h-0"><h3 className="text-xs font-semibold mb-2">Workflow Execution</h3><p className="text-xs text-slate-400 leading-relaxed">Execution steps will be displayed from the real workflow event stream. No hardcoded stages are presented as completed work.</p></Card>
+          <Card className="flex-1 min-h-0"><h3 className="text-xs font-semibold mb-2">Workflow Execution</h3><p className="text-xs text-slate-400 leading-relaxed">Execution steps will be displayed from the real workflow event stream.</p></Card>
         </div>
       </div>
     </PageLayout>
