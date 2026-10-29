@@ -61,7 +61,6 @@ The FastAPI application is started with `python backend/run.py` and defaults to 
 | GET | `/api/model/status` | Model loading state and checkpoint path |
 | GET | `/api/model/info` | Model architecture metadata and available baseline metrics |
 | POST | `/api/analyze` | Run analysis on an uploaded image |
-| GET | `/api/analysis/{analysis_id}/events` | Server-Sent Events for workflow progress, if a client subscribes |
 
 There are no current API endpoints for database-backed history, fetching an individual persisted analysis, saved artifact files, sample-image browsing, or model-insights dashboards.
 
@@ -106,7 +105,9 @@ Relevant environment variables:
 - `FRONTEND_ORIGIN`: configured frontend origin.
 - `GOOGLE_API_KEY` or `GEMINI_API_KEY`: optional Gemini credentials.
 - `CHESTX_REPORT_MODEL`: optional Gemini model override.
-- `VITE_API_BASE_URL`: frontend API base path (defaults to `/api`).\n- `SEGMENTATION_ENABLED`: enable optional opacity segmentation (`false` by default).\n- `SEGMENTATION_MODEL_ID`, `SEGMENTATION_MODEL_REVISION`: model repository and pinned revision.
+- `VITE_API_BASE_URL`: frontend API base path (defaults to `/api`).
+- `SEGMENTATION_ENABLED`: enable optional opacity segmentation (`false` by default).
+- `SEGMENTATION_MODEL_ID`, `SEGMENTATION_MODEL_REVISION`: model repository and pinned revision.
 
 Keep credentials in an untracked local `.env` file. Never commit secrets.
 
