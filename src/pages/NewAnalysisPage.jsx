@@ -5,7 +5,7 @@ import ImagePreparationPanel from '../components/upload/ImagePreparationPanel.js
 import { PageLayout, PageHeader, Card } from '../components/shared/index.js';
 import './pages.css';
 
-export default function NewAnalysisPage({ uploadedFile, setUploadedFile, filePreviewUrl, isAnalyzing, runAnalysis, isBackendConnected = false, isModelReady = false, modelInfo = null, analysisError = '' }) {
+export default function NewAnalysisPage({ uploadedFile, setUploadedFile, filePreviewUrl, isAnalyzing, runAnalysis, isBackendConnected = false, isModelReady = false, modelInfo = null, analysisError = '', preprocessingViews = [], isLoadingPreviews = false }) {
   const architecture = modelInfo?.architecture || 'Chest X-ray model';
   return (
     <PageLayout>
@@ -15,7 +15,7 @@ export default function NewAnalysisPage({ uploadedFile, setUploadedFile, filePre
       {analysisError && <p role="alert" className="page-alert"><AlertCircle />{analysisError}</p>}
       <div className="new-analysis-grid">
         <UploadPanel uploadedFile={uploadedFile} filePreviewUrl={filePreviewUrl} onFileSelect={setUploadedFile} onFileRemove={() => setUploadedFile(null)} disabled={isAnalyzing}/>
-        <ImagePreparationPanel filePreviewUrl={filePreviewUrl}/>
+        <ImagePreparationPanel filePreviewUrl={filePreviewUrl} actualViews={preprocessingViews} isLoading={isLoadingPreviews}/>
       </div>
       <Card padding="card-padding-md" className="analysis-action-bar">
         <p className="page-muted">{isAnalyzing ? 'Analysis is running. Keep this page open until it finishes.' : !isBackendConnected ? 'Backend unavailable. No simulated prediction will be returned.' : isModelReady ? `FastAPI backend and ${architecture} are ready${modelInfo?.device ? ` on ${modelInfo.device}` : ''}.` : `FastAPI is reachable, but ${architecture} is not ready yet.`}</p>
