@@ -17,13 +17,13 @@ export async function checkBackendHealth() {
   catch (error) { return { online: false, apiOnline: false, error: error.message }; }
 }
 
-export async function analyzeImage(file) {
+export async function analyzeImage(file, options = {}) {
   if (!(file instanceof File) || !file.size || !['image/png', 'image/jpeg'].includes(file.type)) {
     throw new Error('Choose a non-empty PNG or JPEG image before analysis.');
   }
   const body = new FormData();
   body.append('image', file);
-  return normalizeAnalysisResult(await requestJson('/analyze', { method: 'POST', headers: {}, body }));
+  return normalizeAnalysisResult(await requestJson('/analyze', { method: 'POST', headers: {}, body, signal: options.signal }));
 }
 
 function normalizeAnalysisResult(data) {
