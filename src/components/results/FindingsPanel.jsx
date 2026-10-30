@@ -5,17 +5,18 @@ import { formatDate } from '../../lib/utils.js';
 import { ClassBadge } from '../shared/index.js';
 import './results.css';
 
-export default function FindingsPanel({ analysisResult }) {
+export default function FindingsPanel({ analysisResult, modelInfo = null }) {
   if (!analysisResult) return null;
   const { id, timestamp, predictedClass, confidence, probabilities = [], findings = {} } = analysisResult;
+  const architecture = modelInfo?.architecture || 'Classifier';
   return <div className="findings-panel">
     <div className="findings-header"><div>
       <div className="findings-status-row"><span className="findings-check"><Check/></span><span className="findings-status">Analysis Complete</span>
-        {analysisResult?.isDemoData ? <span className="findings-record-badge">Sample Record</span> : <span className="findings-inference-badge"><span/>DenseNet121 Inference</span>}
+        {analysisResult?.isDemoData ? <span className="findings-record-badge">Sample Record</span> : <span className="findings-inference-badge"><span/>{architecture} Inference</span>}
       </div>
       <div className="findings-class-row"><h3>{predictedClass}</h3><ClassBadge predictedClass={predictedClass} className="class-badge--compact"/><span>{(confidence*100).toFixed(1)}%</span></div>
     </div><div className="findings-metadata"><div>{id}</div><span><Clock/>{formatDate(timestamp)}</span></div></div>
-    <section className="findings-probability"><h4>Class Probabilities (DenseNet121)</h4><ProbabilityBars probabilities={probabilities} predictedClass={predictedClass}/></section>
+    <section className="findings-probability"><h4>Class Probabilities ({architecture})</h4><ProbabilityBars probabilities={probabilities} predictedClass={predictedClass}/></section>
     <section><h4 className="findings-section-title">Model Diagnostic Indices</h4><div className="findings-grid">
       <div className="findings-metric"><span>View Agreement</span><strong className="findings-positive">{findings.crossViewAgreement ?? 'Unavailable'}</strong></div>
       <div className="findings-metric"><span>Entropy</span><strong className="findings-mono">{findings.predictionEntropy ?? 'Unavailable'}</strong></div>
