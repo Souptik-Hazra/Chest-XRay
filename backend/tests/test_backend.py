@@ -6,7 +6,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.services.quality_ood import check_image_quality, compute_uncertainty_metrics
-from app.services.report import generate_clinical_report
+from app.services.report import generate_clinical_report, build_report_export
 from app.schemas.analysis import ReportSchema
 
 
@@ -50,6 +50,39 @@ class TestDeterministicServices(unittest.TestCase):
         data = report.model_dump()
         self.assertEqual(data["reportSource"], "gemini")
         self.assertEqual(data["reportModel"], "configured-model")
+
+    def test_report_export_is_assembled_by_backend(self):
+        export = build_report_export({
+            "id": "CHX-TEST",
+            "filename": "sample.png",
+            "timestamp": "2026-10-30T10:00:00Z",
+            "predictedClass": "Normal",
+            "confidence": 0.8,
+            "probabilities": [
+                {"label": "Normal", "value": 0.8},
+                {"label": "Bacterial Pneumonia", "value": 0.1},
+                {"label": "Viral Pneumonia", "value": 0.1},
+            ],
+            "findings": {
+                "crossViewAgreement": "High",
+                "predictionEntropy": 0.5,
+                "confidenceMargin": 0.7,
+                "imageQuality": "Good",
+                "oodDetected": False,
+            },
+            "report": {
+                "summary": "Grounded summary.",
+                "gradcamNote": "Saliency only.",
+                "segmentationNote": "Segmentation unavailable.",
+                "reviewRecommendation": "Qualified review required.",
+                "limitations": "Research prototype only.",
+            },
+        })
+        self.assertIn("Case ID: CHX-TEST", export)
+        self.assertIn("- Normal: 80.0%", export)
+        self.assertIn("Uncertainty heuristic flag (not a validated OOD detector): Not flagged", export)
+        self.assertIn("SEGMENTATION NOTE", export)
+        self.assertIn("Grounded summary.", export)
 
 if __name__ == "__main__":
     unittest.main()
