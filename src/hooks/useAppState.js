@@ -10,13 +10,17 @@ export function useAppState() {
   const [analysisError, setAnalysisError] = useState('');
   const [activeResultTab, setActiveResultTab] = useState('summary');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [isModelReady, setIsModelReady] = useState(false);
   const analysisControllerRef = useRef(null);
 
   useEffect(() => {
     let active = true;
     const refreshHealth = async () => {
       const health = await checkBackendHealth();
-      if (active) setIsBackendConnected(Boolean(health.online));
+      if (active) {
+        setIsBackendConnected(Boolean(health.apiOnline));
+        setIsModelReady(Boolean(health.modelReady));
+      }
     };
     refreshHealth();
     const intervalId = window.setInterval(refreshHealth, 30000);
@@ -90,6 +94,6 @@ export function useAppState() {
     activePage, setActivePage: handleSetActivePage, analysisResult,
     uploadedFile, setUploadedFile: handleSetUploadedFile, filePreviewUrl,
     isAnalyzing, analysisError, activeResultTab, setActiveResultTab,
-    isBackendConnected, startNewAnalysis, runAnalysis,
+    isBackendConnected, isModelReady, startNewAnalysis, runAnalysis,
   };
 }
