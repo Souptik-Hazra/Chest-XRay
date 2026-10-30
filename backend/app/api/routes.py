@@ -16,7 +16,8 @@ from ..core.config import settings
 from ..models.densenet import model_service, CLASS_COLORS
 from ..models.gradcam import GradCAM
 from ..services.multiview import generate_multi_views, run_multiview_inference
-from ..services.quality_ood import check_image_quality, compute_uncertainty_metrics
+from ..services.quality_ood import compute_uncertainty_metrics
+from ..services.image_assessment_agent import assess_image
 from ..services.report import generate_clinical_report
 from ..services.analysis_graph import build_analysis_graph
 from ..services.lesion_segmentation import lesion_segmentation_service
@@ -92,9 +93,7 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
     if not model_service.is_loaded or model_service.model is None:
         raise HTTPException(status_code=503, detail=f"DenseNet121 checkpoint is not loaded: {model_service.load_error}")
 
-    filename = Path(image.filename or "radiograph").name
-    if not filename:
-        filename = "radiograph"
+    filename = Path(image.filename or "radiograph").name or "radiograph"
     max_upload_bytes = 20 * 1024 * 1024
     contents = await image.read(max_upload_bytes + 1)
     if not contents:
@@ -109,14 +108,13 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         with Image.open(io.BytesIO(contents)) as dimensions:
             if dimensions.width * dimensions.height > 40_000_000:
                 raise HTTPException(status_code=413, detail="Image dimensions exceed the 40-megapixel limit.")
-        img = Image.open(io.BytesIO(contents)).convert("RGB")
+            img = dimensions.convert("RGB")
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Upload is not a valid supported image.") from exc
 
     analysis_id = f"CHX-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-
     if not _analysis_slots.acquire(blocking=False):
         raise HTTPException(
             status_code=429,
@@ -135,6 +133,15 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
 
     disconnect_task = asyncio.create_task(watch_disconnect())
 
+    def image_assessment_node(state):
+        if cancel_event.is_set():
+            raise InterruptedError("Analysis client disconnected.")
+        assessment = assess_image(state["image"])
+        return {
+            "image_assessment": assessment,
+            "assessment_decision": assessment["decision"],
+        }
+
     def inference_node(state):
         if cancel_event.is_set():
             raise InterruptedError("Analysis client disconnected.")
@@ -152,10 +159,11 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
     def diagnostics_node(state):
         if cancel_event.is_set():
             raise InterruptedError("Analysis client disconnected.")
-        quality = check_image_quality(state["image"])
         result = state["multiview_result"]
         probs = [result["consensusProbabilities"].get(c, 0.0) for c in model_service.display_classes]
         uncertainty = compute_uncertainty_metrics(probs, result["crossViewAgreement"])
+        assessment = state["image_assessment"]
+        quality = assessment["quality"]
         findings = {
             "crossViewAgreement": result["crossViewAgreement"],
             "classVoteAgreement": result["classVoteAgreement"],
@@ -163,12 +171,14 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
             "predictionEntropy": uncertainty["predictionEntropy"],
             "confidenceMargin": uncertainty["confidenceMargin"],
             "imageQuality": quality["rating"],
+            "imageQualityWarnings": assessment["warnings"],
+            "imageAssessmentDecision": assessment["decision"],
             "oodDetected": uncertainty["oodDetected"],
-            "reviewNeeded": uncertainty["reviewNeeded"],
+            "reviewNeeded": bool(uncertainty["reviewNeeded"] or assessment["decision"] == "REVIEW"),
             "laplacianVariance": quality["laplacianVariance"],
             "meanLuminance": quality["meanLuminance"],
         }
-        return {"quality": quality, "uncertainty": uncertainty, "findings": findings}
+        return {"uncertainty": uncertainty, "findings": findings}
 
     def gradcam_node(state):
         if cancel_event.is_set():
@@ -194,6 +204,8 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
                 "gradcam_image": overlay,
                 "gradcam_available": True,
             }
+        except InterruptedError:
+            raise
         except Exception:
             logger.exception("Grad-CAM generation failed for this analysis")
             return {"gradcam_url": None, "gradcam_available": False}
@@ -204,7 +216,10 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
     def report_node(state):
         if cancel_event.is_set():
             raise InterruptedError("Analysis client disconnected.")
-        findings = {**state["findings"], "gradcamAvailable": state.get("gradcam_available", False)}
+        findings = {
+            **state["findings"],
+            "gradcamAvailable": state.get("gradcam_available", False),
+        }
         report = generate_clinical_report(
             predicted_class=state["predicted_class"], confidence=state["confidence"],
             probabilities=state["probabilities"], findings=findings,
@@ -215,7 +230,9 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         return {"findings": findings, "report": report}
 
     try:
-        graph = build_analysis_graph(inference_node, diagnostics_node, gradcam_node, report_node)
+        graph = build_analysis_graph(
+            image_assessment_node, inference_node, diagnostics_node, gradcam_node, report_node
+        )
 
         def run_analysis():
             with model_service.analysis_lock:
@@ -226,6 +243,16 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         result = await run_in_threadpool(run_analysis)
         if cancel_event.is_set():
             raise HTTPException(status_code=499, detail="Analysis was cancelled.")
+
+        assessment = result["image_assessment"]
+        if assessment["decision"] == "REJECT":
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "message": assessment["reason"],
+                    "imageAssessment": assessment,
+                },
+            )
 
         segmentation = await run_in_threadpool(lesion_segmentation_service.segment, img)
         if cancel_event.is_set():
@@ -242,6 +269,7 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         disconnect_task.cancel()
         await asyncio.gather(disconnect_task, return_exceptions=True)
         _analysis_slots.release()
+
     result["report"]["segmentationNote"] = (
         segmentation.get("limitations") or segmentation.get("message")
     )
@@ -254,7 +282,8 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         "confidence": round(confidence, 4), "confidenceLevel": confidence_level,
         "probabilities": [{"label": p["label"], "value": round(p["value"], 6), "color": p["color"]}
                           for p in result["probabilities"]],
-        "findings": result["findings"], "multiview": result["multiview_result"]["views"],
+        "findings": result["findings"], "imageAssessment": result["image_assessment"],
+        "multiview": result["multiview_result"]["views"],
         "report": result["report"], "gradcamUrl": result.get("gradcam_url"),
         "segmentation": segmentation, "status": "completed",
     }
