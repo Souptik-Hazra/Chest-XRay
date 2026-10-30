@@ -103,7 +103,6 @@ class ModelInfoResponse(BaseModel):
     classes: List[str]
     device: str
     isLoaded: bool
-    loadError: Optional[str] = None
     metrics: Dict[str, Any]
 
 
