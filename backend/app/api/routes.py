@@ -1,4 +1,6 @@
+import asyncio
 import base64
+import threading
 import io
 import logging
 import time
@@ -6,7 +8,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from PIL import Image
 import numpy as np
@@ -23,6 +25,7 @@ from ..schemas.analysis import AnalysisResponse, ModelInfoResponse, HealthRespon
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+_analysis_slots = threading.BoundedSemaphore(value=1)
 
 # These are reported only as historical baseline values supplied with the project.
 # Do not interpret them as proof of multi-view gains or current-run performance.
@@ -54,7 +57,7 @@ async def model_info():
 
 
 @router.post("/analyze", response_model=AnalysisResponse)
-async def analyze_radiograph(image: UploadFile = File(...)):
+async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
     if not model_service.is_loaded or model_service.model is None:
         raise HTTPException(status_code=503, detail=f"DenseNet121 checkpoint is not loaded: {model_service.load_error}")
 
@@ -83,9 +86,29 @@ async def analyze_radiograph(image: UploadFile = File(...)):
 
     analysis_id = f"CHX-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
+    if not _analysis_slots.acquire(blocking=False):
+        raise HTTPException(
+            status_code=429,
+            detail="Another analysis is already running. Please try again shortly.",
+            headers={"Retry-After": "5"},
+        )
+
+    cancel_event = threading.Event()
+
+    async def watch_disconnect():
+        while not cancel_event.is_set():
+            if await request.is_disconnected():
+                cancel_event.set()
+                return
+            await asyncio.sleep(0.25)
+
+    disconnect_task = asyncio.create_task(watch_disconnect())
+
     def inference_node(state):
         started = time.perf_counter()
-        result = run_multiview_inference(state["image"])
+        if cancel_event.is_set():
+            raise InterruptedError("Analysis client disconnected.")
+        result = run_multiview_inference(state["image"], cancel_event=cancel_event)
         return {
             "multiview_result": result,
             "predicted_class": result["consensusClass"],
@@ -98,6 +121,8 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         }
 
     def diagnostics_node(state):
+        if cancel_event.is_set():
+            raise InterruptedError("Analysis client disconnected.")
         quality = check_image_quality(state["image"])
         result = state["multiview_result"]
         probs = [result["consensusProbabilities"].get(c, 0.0) for c in model_service.display_classes]
@@ -117,6 +142,8 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         return {"quality": quality, "uncertainty": uncertainty, "findings": findings}
 
     def gradcam_node(state):
+        if cancel_event.is_set():
+            raise InterruptedError("Analysis client disconnected.")
         started = time.perf_counter()
         cam = None
         try:
@@ -124,6 +151,8 @@ async def analyze_radiograph(image: UploadFile = File(...)):
             target_idx = model_service.display_classes.index(state["predicted_class"])
             cam = GradCAM(model_service.model)
             heatmap, _, _ = cam.generate_heatmap(tensor, target_class=target_idx)
+            if cancel_event.is_set():
+                raise InterruptedError("Analysis client disconnected.")
             if not np.isfinite(heatmap).all() or float(np.max(heatmap)) <= 0:
                 return {"gradcam_url": None, "gradcam_available": False,
                         "gradcam_duration": round(time.perf_counter() - started, 3)}
@@ -148,6 +177,8 @@ async def analyze_radiograph(image: UploadFile = File(...)):
                 cam.remove_hooks()
 
     def report_node(state):
+        if cancel_event.is_set():
+            raise InterruptedError("Analysis client disconnected.")
         findings = {**state["findings"], "gradcamAvailable": state.get("gradcam_available", False)}
         report = generate_clinical_report(
             predicted_class=state["predicted_class"], confidence=state["confidence"],
@@ -158,18 +189,34 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         )
         return {"findings": findings, "report": report}
 
-    graph = build_analysis_graph(inference_node, diagnostics_node, gradcam_node, report_node)
     try:
+        graph = build_analysis_graph(inference_node, diagnostics_node, gradcam_node, report_node)
+
         def run_analysis():
             with model_service.analysis_lock:
+                if cancel_event.is_set():
+                    raise InterruptedError("Analysis client disconnected.")
                 return graph.invoke({"image": img})
 
         result = await run_in_threadpool(run_analysis)
+        if cancel_event.is_set():
+            raise HTTPException(status_code=499, detail="Analysis was cancelled.")
+
+        segmentation = await run_in_threadpool(lesion_segmentation_service.segment, img)
+        if cancel_event.is_set():
+            raise HTTPException(status_code=499, detail="Analysis was cancelled.")
+    except InterruptedError as exc:
+        raise HTTPException(status_code=499, detail="Analysis was cancelled.") from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Analysis workflow failed for %s", analysis_id)
         raise HTTPException(status_code=500, detail="Analysis workflow failed. Check server logs for details.") from exc
-
-    segmentation = await run_in_threadpool(lesion_segmentation_service.segment, img)
+    finally:
+        cancel_event.set()
+        disconnect_task.cancel()
+        await asyncio.gather(disconnect_task, return_exceptions=True)
+        _analysis_slots.release()
     result["report"]["segmentationNote"] = (
         segmentation.get("limitations") or segmentation.get("message")
     )
