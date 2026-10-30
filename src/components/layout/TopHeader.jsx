@@ -19,8 +19,8 @@ export default function TopHeader({ isModelReady = false, modelInfo = null }) {
         <span className="top-header__status-dot" />
         <span>
           {isModelReady
-            ? '{architecture} AI Engine: Connected'
-            : '{architecture} AI Engine: Unavailable'}
+            ? `${architecture} AI Engine: Connected`
+            : `${architecture} AI Engine: Unavailable`}
         </span>
       </div>
     </header>
