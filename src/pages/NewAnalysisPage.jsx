@@ -17,7 +17,7 @@ export default function NewAnalysisPage({ uploadedFile, setUploadedFile, filePre
         <ImagePreparationPanel filePreviewUrl={filePreviewUrl}/>
       </div>
       <Card padding="card-padding-md" className="analysis-action-bar">
-        <p className="page-muted">{isAnalyzing ? 'Analysis is running. Keep this page open until it finishes.' : isBackendConnected ? 'FastAPI / PyTorch backend is reachable.' : 'Backend unavailable. No simulated prediction will be returned.'}</p>
+        <p className="page-muted">{isAnalyzing ? 'Analysis is running. Keep this page open until it finishes.' : !isBackendConnected ? 'Backend unavailable. No simulated prediction will be returned.' : isModelReady ? 'FastAPI backend and DenseNet121 model are ready.' : 'FastAPI is reachable, but DenseNet121 is not ready yet.'}</p>
         <button onClick={() => runAnalysis(uploadedFile)} disabled={!uploadedFile || isAnalyzing || !isModelReady} className="page-action page-action--primary page-action--analyze">
           {isAnalyzing ? <><Loader2 className="spin-icon"/>Running analysis…</> : <><Play/>Analyze Radiograph</>}
         </button>
