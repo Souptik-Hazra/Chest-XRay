@@ -27,10 +27,6 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 _analysis_slots = threading.BoundedSemaphore(value=1)
 
-# These are reported only as historical baseline values supplied with the project.
-# Do not interpret them as proof of multi-view gains or current-run performance.
-BASELINE_METRICS = None
-
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -52,7 +48,7 @@ async def model_info():
         architecture="DenseNet121 with custom 3-class classifier head",
         classes=model_service.display_classes, device=str(model_service.device),
         isLoaded=model_service.is_loaded,
-        loadError=model_service.load_error, metrics=BASELINE_METRICS or {}
+        loadError=model_service.load_error, metrics={}
     )
 
 
@@ -241,7 +237,6 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         if cancel_event.is_set():
             raise HTTPException(status_code=499, detail="Analysis was cancelled.")
 
-        assessment = result["image_assessment"]
         segmentation = await run_in_threadpool(lesion_segmentation_service.segment, img)
         if cancel_event.is_set():
             raise HTTPException(status_code=499, detail="Analysis was cancelled.")
