@@ -6,11 +6,18 @@ from typing import Dict, Any, List
 
 def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
     """Return basic pixel heuristics, not a clinically validated quality assessment."""
-    img_gray = np.asarray(img_pil.convert("L"))
-    laplacian_var = float(cv2.Laplacian(img_gray, cv2.CV_64F).var())
+    if not isinstance(img_pil, Image.Image) or img_pil.width < 1 or img_pil.height < 1:
+        raise ValueError("Image quality assessment requires a valid, non-empty image.")
+
+    img_rgb = cv2.cvtColor(np.asarray(img_pil.convert("RGB")), cv2.COLOR_RGB2BGR)
+    img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
+    laplacian = cv2.Laplacian(img_gray, cv2.CV_64F)
+    laplacian_mean, laplacian_std = cv2.meanStdDev(laplacian)
+    laplacian_var = float(laplacian_std[0, 0] ** 2)
     is_sharp = laplacian_var > 60.0
-    mean_lum = float(np.mean(img_gray))
-    std_lum = float(np.std(img_gray))
+    mean_values, std_values = cv2.meanStdDev(img_gray)
+    mean_lum = float(mean_values[0, 0])
+    std_lum = float(std_values[0, 0])
     if mean_lum < 35.0:
         exposure = "Dark intensity"
     elif mean_lum > 220.0:
