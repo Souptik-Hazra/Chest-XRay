@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Copy, Download, Check, ShieldAlert, FileText } from 'lucide-react';
-import { formatDate } from '../../lib/utils.js';
 import { Card, Callout } from '../shared/index.js';
 import './results.css';
 
@@ -60,22 +59,9 @@ function FormattedReport({ content }) {
 export default function AIReportPanel({ analysisResult }) {
   const [copied, setCopied] = useState(false);
   if (!analysisResult) return null;
-  const { id, filename, timestamp, predictedClass, confidence, probabilities, findings = {}, report = {} } = analysisResult;
+  const { id, predictedClass, confidence, findings = {}, report = {} } = analysisResult;
   const reportText = report.summary || 'No report summary was returned by the backend.';
-  const fullReportText = [
-    'CHESTX AI RESEARCH OUTPUT', `Case ID: ${id}`, `Timestamp: ${formatDate(timestamp)}`, `Input: ${filename}`,
-    'Model: fine-tuned DenseNet121; multi-view mean probability aggregation', '',
-    'MODEL OUTPUT (not a verified diagnosis)', `Predicted class: ${predictedClass}`, `Top class score: ${(Number(confidence) * 100).toFixed(1)}%`,
-    'Class probabilities:', ...(probabilities || []).map(p => `- ${p.label}: ${(Number(p.value) * 100).toFixed(1)}%`), '',
-    'MEASURED DIAGNOSTICS', `Cross-view agreement: ${findings.crossViewAgreement ?? 'Unavailable'}`,
-    `Prediction entropy: ${findings.predictionEntropy ?? 'Unavailable'}`, `Confidence margin: ${findings.confidenceMargin ?? 'Unavailable'}`,
-    `Image quality: ${findings.imageQuality ?? 'Unavailable'}`,
-    `Uncertainty heuristic flag (not a validated OOD detector): ${findings.oodDetected === true ? 'Flagged' : findings.oodDetected === false ? 'Not flagged' : 'Unavailable'}`, '',
-    'AI-GENERATED REPORT', reportText, '',
-    'GRAD-CAM LIMITATION', report.gradcamNote || 'Grad-CAM description unavailable.', '',
-    'REVIEW NOTE', report.reviewRecommendation || 'Qualified review is required; no clinical recommendation was generated.', '',
-    'LIMITATIONS', report.limitations || 'Research prototype only. Do not use as a standalone diagnostic tool.'
-  ].join('\n');
+  const fullReportText = report.exportText || report.summary || 'No report export was returned by the backend.';
 
   const handleCopy = async () => {
     try {
