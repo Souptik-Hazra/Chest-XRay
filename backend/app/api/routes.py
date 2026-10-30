@@ -186,14 +186,16 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
                 raise InterruptedError("Analysis client disconnected.")
             if not np.isfinite(heatmap).all() or float(np.max(heatmap)) <= 0:
                 return {"gradcam_url": None, "gradcam_available": False}
-            overlay = Image.fromarray(
-                GradCAM.overlay_heatmap(np.array(state["image"].convert("RGB")), heatmap, alpha=0.45)
+            original = np.array(state["image"].convert("RGB"))
+            heatmap_image = Image.fromarray(
+                GradCAM.colorize_heatmap(heatmap, original.shape[1], original.shape[0])
             )
+            overlay = Image.fromarray(GradCAM.overlay_heatmap(original, heatmap, alpha=0.45))
             buffer = io.BytesIO()
-            overlay.save(buffer, format="PNG")
-            overlay_data = base64.b64encode(buffer.getvalue()).decode("ascii")
+            heatmap_image.save(buffer, format="PNG")
+            heatmap_data = base64.b64encode(buffer.getvalue()).decode("ascii")
             return {
-                "gradcam_url": f"data:image/png;base64,{overlay_data}",
+                "gradcam_url": f"data:image/png;base64,{heatmap_data}",
                 "gradcam_image": overlay,
                 "gradcam_available": True,
             }
