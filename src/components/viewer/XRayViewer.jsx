@@ -30,9 +30,8 @@ export default function XRayViewer({ imageUrl = null, gradcamUrl = null, title =
   };
   const renderImage = (src, badge, overlay = false) => <div className="xray-image-stage">
     <div className="xray-image-transform" style={{transform:`scale(${zoom})`}}>
-      {overlay && showOverlay && gradcamUrl
-        ? <img src={gradcamUrl} alt="Grad-CAM composite visualization" className="xray-image" style={{opacity:overlayOpacity}}/>
-        : src ? <img src={src} alt="Chest X-Ray" className="xray-image"/> : <div className="xray-image-empty">Upload a radiograph to view it</div>}
+      {src ? <img src={src} alt="Chest X-Ray" className="xray-image"/> : <div className="xray-image-empty">Upload a radiograph to view it</div>}
+      {overlay && showOverlay && gradcamUrl && <img src={gradcamUrl} alt="Grad-CAM heatmap" className="xray-heatmap" style={{opacity:overlayOpacity}}/>}
     </div>
     {overlay && showOverlay && gradcamUrl && <div className="xray-heatmap-label"><span/>Grad-CAM saliency (approximate)</div>}
     <div className="xray-view-badge">{badge}</div>
