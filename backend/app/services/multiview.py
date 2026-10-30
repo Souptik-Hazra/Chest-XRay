@@ -1,7 +1,8 @@
 import numpy as np
 import base64
 from io import BytesIO
-from PIL import Image, ImageEnhance
+from PIL import Image
+import cv2
 from typing import List, Dict, Any, Tuple
 from ..models.densenet import model_service
 
@@ -11,31 +12,32 @@ def generate_multi_views(img_pil: Image.Image) -> List[Tuple[str, str, Image.Ima
     if not isinstance(img_pil, Image.Image) or img_pil.width < 1 or img_pil.height < 1:
         raise ValueError("Multi-view inference requires a valid, non-empty PIL image.")
 
+    image = cv2.cvtColor(np.asarray(img_pil.convert("RGB")), cv2.COLOR_RGB2BGR)
+    height, width = image.shape[:2]
     views = [("original", "Original View", img_pil.copy())]
 
-    resized = img_pil.resize((224, 224), Image.Resampling.BILINEAR).resize(
-        img_pil.size, Image.Resampling.BILINEAR
-    )
-    views.append(("resized", "Resize Sensitivity", resized))
+    resized = cv2.resize(image, (224, 224), interpolation=cv2.INTER_LINEAR)
+    resized = cv2.resize(resized, (width, height), interpolation=cv2.INTER_LINEAR)
+    views.append(("resized", "Resize Sensitivity", Image.fromarray(cv2.cvtColor(resized, cv2.COLOR_BGR2RGB))))
 
-    contrast_img = ImageEnhance.Contrast(img_pil).enhance(1.35)
-    views.append(("contrast", "Contrast Sensitivity", contrast_img))
+    contrast = cv2.convertScaleAbs(image, alpha=1.35, beta=0)
+    views.append(("contrast", "Contrast Sensitivity", Image.fromarray(cv2.cvtColor(contrast, cv2.COLOR_BGR2RGB))))
 
-    width, height = img_pil.size
     crop_width = max(1, int(width * 0.88))
     crop_height = max(1, int(height * 0.88))
-    left = (width - crop_width) // 2
-    top = (height - crop_height) // 2
-    cropped = img_pil.crop(
-        (left, top, left + crop_width, top + crop_height)
-    ).resize((width, height), Image.Resampling.BILINEAR)
-    views.append(("cropped", "Center-Crop Sensitivity", cropped))
-
-    augmented = img_pil.rotate(
-        3, resample=Image.Resampling.BILINEAR, fillcolor=0 if img_pil.mode == "L" else None
+    cropped = cv2.getRectSubPix(
+        image, (crop_width, crop_height), (width / 2.0, height / 2.0)
     )
-    augmented = ImageEnhance.Brightness(augmented).enhance(1.05)
-    views.append(("augmented", "Mild Rotation/Brightness Sensitivity", augmented))
+    cropped = cv2.resize(cropped, (width, height), interpolation=cv2.INTER_LINEAR)
+    views.append(("cropped", "Center-Crop Sensitivity", Image.fromarray(cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))))
+
+    rotation = cv2.getRotationMatrix2D((width / 2.0, height / 2.0), 3, 1.0)
+    augmented = cv2.warpAffine(
+        image, rotation, (width, height), flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0)
+    )
+    augmented = cv2.convertScaleAbs(augmented, alpha=1.05, beta=0)
+    views.append(("augmented", "Mild Rotation/Brightness Sensitivity", Image.fromarray(cv2.cvtColor(augmented, cv2.COLOR_BGR2RGB))))
 
     return views
 
