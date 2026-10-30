@@ -21,8 +21,8 @@ export default function FindingsPanel({ analysisResult }) {
       <div className="findings-metric"><span>Entropy</span><strong className="findings-mono">{findings.predictionEntropy ?? 'Unavailable'}</strong></div>
       <div className="findings-metric"><span>Confidence Margin</span><strong className="findings-mono">+{typeof findings.confidenceMargin==='number' ? `${(findings.confidenceMargin*100).toFixed(0)}%` : 'Unavailable'}</strong></div>
       <div className="findings-metric"><span>Image Quality</span><strong className="findings-positive">{findings.imageQuality ?? 'Unavailable'}</strong></div>
-      <div className="findings-metric"><span>OOD Detected</span><strong className={findings.oodDetected?'findings-warning':'findings-default'}>{typeof findings.oodDetected==='boolean' ? (findings.oodDetected?'Flag raised':'No flag') : 'Unavailable'}</strong></div>
+      <div className="findings-metric"><span>Uncertainty Heuristic</span><strong className={findings.oodDetected?'findings-warning':'findings-default'}>{typeof findings.oodDetected==='boolean' ? (findings.oodDetected?'Flag raised':'No flag') : 'Unavailable'}</strong></div>
       <div className="findings-metric"><span>Review Status</span><strong className={findings.reviewNeeded?'findings-warning':'findings-default'}>{typeof findings.reviewNeeded==='boolean' ? (findings.reviewNeeded?'Review suggested':'No heuristic flag') : 'Unavailable'}</strong></div>
-    </div></section>
+    <p className="findings-muted">Heuristic only; not a validated out-of-distribution detector.</p></div></section>
   </div>;
 }

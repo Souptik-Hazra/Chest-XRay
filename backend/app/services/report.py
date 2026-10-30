@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 import base64
 from io import BytesIO
 import os
+import logging
 
 from dotenv import load_dotenv
 
@@ -12,6 +13,8 @@ _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _REPO_DIR = _BACKEND_DIR.parent
 load_dotenv(_REPO_DIR / ".env")
 load_dotenv(_BACKEND_DIR / ".env", override=True)
+
+logger = logging.getLogger(__name__)
 
 
 def _grounded_summary(predicted_class: str, confidence: float, probabilities: List[Dict[str, Any]], findings: Dict[str, Any]) -> str:
@@ -24,7 +27,7 @@ def _grounded_summary(predicted_class: str, confidence: float, probabilities: Li
         f"{confidence * 100:.1f}%. Class scores: {distribution}. "
         f"Cross-view agreement: {findings.get('crossViewAgreement', 'unavailable')}; "
         f"image quality heuristic: {findings.get('imageQuality', 'unavailable')}; "
-        f"uncertainty flag: {findings.get('oodDetected', 'unavailable')}. "
+        f"uncertainty heuristic flag: {findings.get('oodDetected', 'unavailable')}. "
         "This is a summary of model outputs, not an independently verified radiology finding."
     )
 
@@ -115,8 +118,8 @@ def _gemini_summary(
             )
         text = str(content).strip()
         return text or None
-    except Exception:
-        # An LLM outage must not fabricate a report or fail valid model inference.
+    except Exception as exc:
+        logger.warning("Gemini report generation failed (%s); using deterministic fallback", type(exc).__name__)
         return None
 
 
@@ -152,7 +155,6 @@ def generate_clinical_report(
             if findings.get("gradcamAvailable") else
             "Grad-CAM output is unavailable for this analysis."
         ),
-        "segmentationNote": "Opacity segmentation was not performed; affected lung area is not estimated.",
         "limitations": (
             "Research prototype only. DenseNet121 class scores are not calibrated clinical probabilities. "
             "The system does not independently establish radiographic findings and must not be used for diagnosis or treatment."
@@ -161,3 +163,16 @@ def generate_clinical_report(
         "reportSource": report_source,
         "reportModel": os.getenv("CHESTX_REPORT_MODEL", "gemini-3.5-flash-lite") if summary and report_source == "gemini" else "deterministic",
     }
+
+
+
+def segmentation_note_for_result(segmentation: Dict[str, Any]) -> str:
+    """Describe the actual optional segmentation outcome without implying clinical certainty."""
+    status = segmentation.get("status")
+    if status == "completed":
+        return "The optional opacity segmentation model returned an approximate mask. It is not a verified lesion contour or a lung-area measurement."
+    if status == "no_region_detected":
+        return "The optional opacity segmentation model returned no region above its configured threshold. This does not rule out disease."
+    if status == "disabled":
+        return "Opacity segmentation was disabled for this analysis; no mask was generated."
+    return "Opacity segmentation was unavailable for this analysis; no mask was generated."

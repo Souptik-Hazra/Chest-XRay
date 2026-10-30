@@ -114,6 +114,7 @@ async def analyze_radiograph(image: UploadFile = File(...)):
             "laplacianVariance": quality["laplacianVariance"],
             "meanLuminance": quality["meanLuminance"],
             "oodMethod": "uncertainty_heuristic_not_validated_ood_detector",
+            "uncertaintyMethod": uncertainty["method"],
         }
         return {"quality": quality, "uncertainty": uncertainty, "findings": findings}
 

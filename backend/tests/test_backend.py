@@ -6,11 +6,17 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.services.quality_ood import check_image_quality, compute_uncertainty_metrics
-from app.services.report import generate_clinical_report
+from app.services.report import generate_clinical_report, segmentation_note_for_result
 from app.schemas.analysis import ReportSchema
 
 
 class TestDeterministicServices(unittest.TestCase):
+    def test_segmentation_note_matches_actual_status(self):
+        self.assertIn("disabled", segmentation_note_for_result({"status": "disabled"}))
+        self.assertIn("approximate mask", segmentation_note_for_result({"status": "completed"}))
+        self.assertIn("does not rule out disease", segmentation_note_for_result({"status": "no_region_detected"}))
+        self.assertIn("unavailable", segmentation_note_for_result({"status": "unavailable"}))
+
     def test_quality_uses_explicit_heuristic_method(self):
         result = check_image_quality(Image.new("RGB", (128, 128), color=(120, 120, 120)))
         self.assertEqual(result["method"], "basic_pixel_heuristics_not_clinically_validated")

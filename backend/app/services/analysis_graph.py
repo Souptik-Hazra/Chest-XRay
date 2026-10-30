@@ -39,3 +39,9 @@ def build_analysis_graph(inference_node, diagnostics_node, gradcam_node, report_
     graph.add_edge(["diagnostics", "gradcam"], "report")
     graph.add_edge("report", END)
     return graph.compile()
+
+
+def invoke_analysis_graph(graph, state, model_lock):
+    """Run the synchronous graph while protecting shared model and Grad-CAM state."""
+    with model_lock:
+        return graph.invoke(state)

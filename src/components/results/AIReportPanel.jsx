@@ -70,7 +70,7 @@ export default function AIReportPanel({ analysisResult }) {
     'MEASURED DIAGNOSTICS', `Cross-view agreement: ${findings.crossViewAgreement ?? 'Unavailable'}`,
     `Prediction entropy: ${findings.predictionEntropy ?? 'Unavailable'}`, `Confidence margin: ${findings.confidenceMargin ?? 'Unavailable'}`,
     `Image quality: ${findings.imageQuality ?? 'Unavailable'}`,
-    `Uncertainty heuristic flag: ${findings.oodDetected === true ? 'Flagged' : findings.oodDetected === false ? 'Not flagged' : 'Unavailable'}`, '',
+    `Uncertainty heuristic flag (not a validated OOD detector): ${findings.oodDetected === true ? 'Flagged' : findings.oodDetected === false ? 'Not flagged' : 'Unavailable'}`, '',
     'AI-GENERATED REPORT', reportText, '',
     'GRAD-CAM LIMITATION', report.gradcamNote || 'Grad-CAM description unavailable.', '',
     'REVIEW NOTE', report.reviewRecommendation || 'Qualified review is required; no clinical recommendation was generated.', '',

@@ -1,4 +1,5 @@
 import os
+import threading
 import torch
 import torch.nn as nn
 import torchvision.models as models
@@ -46,6 +47,7 @@ class ModelService:
     def __init__(self):
         self.device = torch.device(settings.DEVICE if torch.cuda.is_available() and settings.DEVICE != "cpu" else "cpu")
         self.model: Optional[nn.Module] = None
+        self.analysis_lock = threading.RLock()
         self.raw_classes: List[str] = ["Bacterial_Pneumonia", "Normal", "Viral_Pneumonia"]
         self.display_classes: List[str] = [LABEL_MAPPING.get(c, c) for c in self.raw_classes]
         self.is_loaded: bool = False
