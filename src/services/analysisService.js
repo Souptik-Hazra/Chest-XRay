@@ -57,8 +57,40 @@ function normalizeAnalysisResult(data) {
     throw new Error('Malformed analysis response: class probabilities do not match the predicted class.');
   }
   if (!Number.isFinite(Number(data.confidence)) || Number(data.confidence) < 0 ||
-      Number(data.confidence) > 1 || !data.findings || !data.report?.summary) {
+      Number(data.confidence) > 1 || !data.findings || typeof data.findings !== 'object' ||
+      !data.report || typeof data.report.summary !== 'string' || !data.report.summary.trim()) {
     throw new Error('Malformed analysis response: confidence, findings, or report is invalid.');
   }
-  return { ...data, confidence: Number(data.confidence), multiview: data.multiview ?? null, gradcamUrl: data.gradcamUrl ?? null };
+
+  const multiview = Array.isArray(data.multiview) ? data.multiview.filter(view =>
+    view && typeof view === 'object' && typeof view.id === 'string' &&
+    typeof view.name === 'string' && typeof view.predictedClass === 'string' &&
+    Number.isFinite(view.confidence) && view.confidence >= 0 && view.confidence <= 1 &&
+    view.probabilities && typeof view.probabilities === 'object' &&
+    (!view.previewUrl || (typeof view.previewUrl === 'string' && view.previewUrl.startsWith('data:image/')))
+  ) : null;
+
+  const segmentation = data.segmentation && typeof data.segmentation === 'object'
+    ? data.segmentation : null;
+  const segmentationStatus = ['disabled', 'unavailable', 'completed', 'no_region_detected'];
+  let safeSegmentation = segmentation;
+  if (segmentation && (!segmentationStatus.includes(segmentation.status) ||
+      (['completed', 'no_region_detected'].includes(segmentation.status) &&
+       (typeof segmentation.maskUrl !== 'string' || !segmentation.maskUrl.startsWith('data:image/') ||
+        typeof segmentation.overlayUrl !== 'string' || !segmentation.overlayUrl.startsWith('data:image/') ||
+        !Number.isFinite(segmentation.areaPercent) || segmentation.areaPercent < 0 || segmentation.areaPercent > 100 ||
+        !Number.isFinite(segmentation.meanMaskScore) || segmentation.meanMaskScore < 0 || segmentation.meanMaskScore > 1 ||
+        !Number.isFinite(segmentation.threshold) || segmentation.threshold < 0 || segmentation.threshold > 1)))) {
+    safeSegmentation = null;
+  }
+
+  const gradcamUrl = typeof data.gradcamUrl === 'string' && data.gradcamUrl.startsWith('data:image/')
+    ? data.gradcamUrl : null;
+  return {
+    ...data,
+    confidence: Number(data.confidence),
+    multiview,
+    segmentation: safeSegmentation,
+    gradcamUrl,
+  };
 }
