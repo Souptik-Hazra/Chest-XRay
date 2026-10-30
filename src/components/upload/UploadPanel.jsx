@@ -11,7 +11,7 @@ export default function UploadPanel({ uploadedFile, filePreviewUrl, onFileSelect
     if (disabled) return;
     setErrorMsg('');
     if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) return setErrorMsg('Upload a PNG or JPEG chest radiograph.');
+    if (!['image/png', 'image/jpeg'].includes(file.type)) return setErrorMsg('Upload a PNG or JPEG chest radiograph.');
     if (file.size > 20 * 1024 * 1024) return setErrorMsg('File exceeds 20 MiB limit.');
     onFileSelect(file);
   };
