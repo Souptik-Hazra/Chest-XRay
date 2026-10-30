@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
 
@@ -16,7 +16,7 @@ class FindingsSchema(BaseModel):
     predictionEntropy: float = 0.0
     confidenceMargin: float = 0.0
     imageQuality: str = "Good"
-    imageQualityWarnings: List[str] = []
+    imageQualityWarnings: List[str] = Field(default_factory=list)
     imageAssessmentDecision: Optional[str] = None
     oodDetected: bool = False
     reviewNeeded: bool = False
