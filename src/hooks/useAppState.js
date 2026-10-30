@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { analyzeImage, checkBackendHealth } from '../services/analysisService.js';
+import { analyzeImage, checkBackendHealth, fetchModelInfo } from '../services/analysisService.js';
 
 export function useAppState() {
   const [activePage, setActivePage] = useState('new-analysis');
@@ -11,15 +11,17 @@ export function useAppState() {
   const [activeResultTab, setActiveResultTab] = useState('summary');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [isModelReady, setIsModelReady] = useState(false);
+  const [modelInfo, setModelInfo] = useState(null);
   const analysisControllerRef = useRef(null);
 
   useEffect(() => {
     let active = true;
     const refreshHealth = async () => {
-      const health = await checkBackendHealth();
+      const [health, info] = await Promise.all([checkBackendHealth(), fetchModelInfo()]);
       if (active) {
         setIsBackendConnected(Boolean(health.apiOnline));
         setIsModelReady(Boolean(health.modelReady));
+        setModelInfo(info);
       }
     };
     refreshHealth();
@@ -94,6 +96,6 @@ export function useAppState() {
     activePage, setActivePage: handleSetActivePage, analysisResult,
     uploadedFile, setUploadedFile: handleSetUploadedFile, filePreviewUrl,
     isAnalyzing, analysisError, activeResultTab, setActiveResultTab,
-    isBackendConnected, isModelReady, startNewAnalysis, runAnalysis,
+    isBackendConnected, isModelReady, modelInfo, startNewAnalysis, runAnalysis,
   };
 }
