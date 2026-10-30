@@ -137,10 +137,7 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         if cancel_event.is_set():
             raise InterruptedError("Analysis client disconnected.")
         assessment = assess_image(state["image"])
-        return {
-            "image_assessment": assessment,
-            "assessment_decision": assessment["decision"],
-        }
+        return {"image_assessment": assessment}
 
     def inference_node(state):
         if cancel_event.is_set():
@@ -245,15 +242,6 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
             raise HTTPException(status_code=499, detail="Analysis was cancelled.")
 
         assessment = result["image_assessment"]
-        if assessment["decision"] == "REJECT":
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "message": assessment["reason"],
-                    "imageAssessment": assessment,
-                },
-            )
-
         segmentation = await run_in_threadpool(lesion_segmentation_service.segment, img)
         if cancel_event.is_set():
             raise HTTPException(status_code=499, detail="Analysis was cancelled.")
