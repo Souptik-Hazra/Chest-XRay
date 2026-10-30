@@ -1,7 +1,7 @@
 import math
 import os
 from pathlib import Path
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -49,6 +49,16 @@ class Settings(BaseModel):
         if value <= 0:
             raise ValueError("IMAGE_LOW_RESOLUTION_WARNING_DIMENSION must be greater than zero.")
         return value
+
+    @model_validator(mode="after")
+    def validate_luminance_ranges(self):
+        if self.IMAGE_DARK_LUMINANCE_THRESHOLD > 255 or self.IMAGE_BRIGHT_LUMINANCE_THRESHOLD > 255:
+            raise ValueError("Luminance thresholds must be within the 8-bit grayscale range (0-255).")
+        if self.IMAGE_DARK_LUMINANCE_THRESHOLD >= self.IMAGE_BRIGHT_LUMINANCE_THRESHOLD:
+            raise ValueError("Dark luminance threshold must be lower than bright luminance threshold.")
+        if self.IMAGE_LOW_CONTRAST_STD_THRESHOLD > 255:
+            raise ValueError("Contrast standard-deviation threshold must be within 0-255.")
+        return self
 
 
 settings = Settings()
