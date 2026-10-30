@@ -14,7 +14,6 @@ class AnalysisState(TypedDict, total=False):
     predicted_class: str
     confidence: float
     probabilities: list[dict]
-    inference_duration: float
     quality: dict
     uncertainty: dict
     findings: dict
@@ -22,8 +21,6 @@ class AnalysisState(TypedDict, total=False):
     gradcam_url: str | None
     gradcam_image: Any
     gradcam_available: bool
-    gradcam_duration: float
-    errors: list[str]
 
 
 def build_analysis_graph(inference_node, diagnostics_node, gradcam_node, report_node):
@@ -39,4 +36,3 @@ def build_analysis_graph(inference_node, diagnostics_node, gradcam_node, report_
     graph.add_edge(["diagnostics", "gradcam"], "report")
     graph.add_edge("report", END)
     return graph.compile()
-

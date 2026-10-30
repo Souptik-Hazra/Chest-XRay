@@ -1,11 +1,9 @@
-import base64
-import io
 import torch
 import torch.nn.functional as F
 import numpy as np
 import cv2
-from PIL import Image
 from typing import Tuple, Optional
+
 
 class GradCAM:
     def __init__(self, model, target_layer=None):
@@ -90,15 +88,6 @@ class GradCAM:
 
         overlay = cv2.addWeighted(original_img_np, 1 - alpha, colormap, alpha, 0)
         return overlay
-
-    @staticmethod
-    def to_base64_data_uri(img_rgb_np: np.ndarray) -> str:
-        """Encodes an RGB numpy image as a base64 PNG data URI."""
-        pil_img = Image.fromarray(img_rgb_np)
-        buffer = io.BytesIO()
-        pil_img.save(buffer, format="PNG")
-        b64_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
-        return f"data:image/png;base64,{b64_str}"
 
     def remove_hooks(self):
         for h in self.hooks:

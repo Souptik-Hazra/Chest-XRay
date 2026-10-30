@@ -14,9 +14,6 @@ class Settings(BaseModel):
     API_V1_STR: str = "/api"
     MODEL_DIR: str = os.getenv("MODEL_DIR", str(DEFAULT_MODEL_DIR))
     MODEL_PATH: str = os.getenv("MODEL_PATH", str(Path(os.getenv("MODEL_DIR", str(DEFAULT_MODEL_DIR))) / "models" / "densenet121_pneumonia.pth"))
-    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
-    HOST: str = os.getenv("API_HOST", "127.0.0.1")
-    PORT: int = int(os.getenv("API_PORT", "8000"))
     FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")
     DEVICE: str = os.getenv("MODEL_DEVICE", "cpu")

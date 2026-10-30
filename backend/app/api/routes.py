@@ -3,7 +3,6 @@ import base64
 import threading
 import io
 import logging
-import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -105,7 +104,6 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
     disconnect_task = asyncio.create_task(watch_disconnect())
 
     def inference_node(state):
-        started = time.perf_counter()
         if cancel_event.is_set():
             raise InterruptedError("Analysis client disconnected.")
         result = run_multiview_inference(state["image"], cancel_event=cancel_event)
@@ -117,7 +115,6 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
                 {"label": label, "value": float(value), "color": CLASS_COLORS.get(label, "#6366f1")}
                 for label, value in result["consensusProbabilities"].items()
             ],
-            "inference_duration": round(time.perf_counter() - started, 3),
         }
 
     def diagnostics_node(state):
@@ -144,7 +141,6 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
     def gradcam_node(state):
         if cancel_event.is_set():
             raise InterruptedError("Analysis client disconnected.")
-        started = time.perf_counter()
         cam = None
         try:
             tensor = model_service.preprocess_transform(state["image"]).unsqueeze(0).to(model_service.device)
@@ -154,8 +150,7 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
             if cancel_event.is_set():
                 raise InterruptedError("Analysis client disconnected.")
             if not np.isfinite(heatmap).all() or float(np.max(heatmap)) <= 0:
-                return {"gradcam_url": None, "gradcam_available": False,
-                        "gradcam_duration": round(time.perf_counter() - started, 3)}
+                return {"gradcam_url": None, "gradcam_available": False}
             overlay = Image.fromarray(
                 GradCAM.overlay_heatmap(np.array(state["image"].convert("RGB")), heatmap, alpha=0.45)
             )
@@ -166,12 +161,10 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
                 "gradcam_url": f"data:image/png;base64,{overlay_data}",
                 "gradcam_image": overlay,
                 "gradcam_available": True,
-                "gradcam_duration": round(time.perf_counter() - started, 3),
             }
         except Exception:
             logger.exception("Grad-CAM generation failed for this analysis")
-            return {"gradcam_url": None, "gradcam_available": False,
-                    "gradcam_duration": round(time.perf_counter() - started, 3)}
+            return {"gradcam_url": None, "gradcam_available": False}
         finally:
             if cam is not None:
                 cam.remove_hooks()
@@ -234,5 +227,3 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         "segmentation": segmentation, "status": "completed",
     }
     return record
-
-

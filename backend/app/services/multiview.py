@@ -135,7 +135,6 @@ def run_multiview_inference(img_pil: Image.Image, cancel_event=None) -> Dict[str
 
     probs_matrix = np.stack(all_probs, axis=0)
     mean_probs = np.mean(probs_matrix, axis=0)
-    std_probs = np.std(probs_matrix, axis=0)
     consensus_idx = int(np.argmax(mean_probs))
     vote_summary = summarize_view_agreement(
         [view["predictedClass"] for view in view_results], display_classes
@@ -149,16 +148,7 @@ def run_multiview_inference(img_pil: Image.Image, cancel_event=None) -> Dict[str
             display_classes[i]: float(mean_probs[i])
             for i in range(len(display_classes))
         },
-        "meanProbabilitiesList": [
-            {
-                "label": display_classes[i],
-                "value": float(round(mean_probs[i], 3)),
-                "variance": float(round(std_probs[i], 4)),
-            }
-            for i in range(len(display_classes))
-        ],
         **vote_summary,
-        "crossViewStdDev": round(float(np.mean(std_probs)), 4),
         "analysisMethod": "single_model_transformed_input_sensitivity",
         "independentModels": 1,
         "viewCount": len(view_results),
