@@ -55,6 +55,10 @@ export function useAppState() {
 
   const startNewAnalysis = () => {
     cancelAnalysis();
+    previewControllerRef.current?.abort();
+    previewControllerRef.current = null;
+    setIsLoadingPreviews(false);
+    setPreprocessingViews([]);
     setActivePage('new-analysis');
     setAnalysisResult(null);
     setAnalysisError('');
