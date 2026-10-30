@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { analyzeImage, checkBackendHealth } from '../services/analysisService.js';
 
 export function useAppState() {
@@ -10,7 +10,6 @@ export function useAppState() {
   const [analysisError, setAnalysisError] = useState('');
   const [activeResultTab, setActiveResultTab] = useState('summary');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
-  const resultPreviewRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -27,8 +26,6 @@ export function useAppState() {
   }, []);
 
   const startNewAnalysis = () => {
-    if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
-    resultPreviewRef.current = null;
     setActivePage('new-analysis');
     setAnalysisResult(null);
     setAnalysisError('');
@@ -47,9 +44,7 @@ export function useAppState() {
     setAnalysisError('');
     try {
       const result = await analyzeImage(file);
-      if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
-      resultPreviewRef.current = file ? URL.createObjectURL(file) : null;
-      setAnalysisResult({ ...result, previewUrl: resultPreviewRef.current });
+      setAnalysisResult({ ...result, previewUrl: filePreviewUrl });
       setActivePage('results');
     } catch (err) {
       setAnalysisError(err.message || 'Analysis failed. Check the backend and try again.');
@@ -59,10 +54,6 @@ export function useAppState() {
     }
   };
 
-  useEffect(() => () => {
-    if (resultPreviewRef.current) URL.revokeObjectURL(resultPreviewRef.current);
-  }, []);
-
   useEffect(() => {
     return () => {
       if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
@@ -70,7 +61,7 @@ export function useAppState() {
   }, [filePreviewUrl]);
 
   return {
-    activePage, setActivePage, analysisResult, setAnalysisResult,
+    activePage, setActivePage, analysisResult,
     uploadedFile, setUploadedFile: handleSetUploadedFile, filePreviewUrl,
     isAnalyzing, analysisError, activeResultTab, setActiveResultTab,
     isBackendConnected, startNewAnalysis, runAnalysis,
