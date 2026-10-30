@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import ViewerControls from './ViewerControls.jsx';
 import './viewer.css';
 
-export default function XRayViewer({ imageUrl = null, gradcamUrl = null, title = 'Frontal PA Chest Radiograph', isGradcamActive = false, showHeatmapAlways = false, activeView = null }) {
+export default function XRayViewer({ imageUrl = null, gradcamUrl = null, title = 'Frontal PA Chest Radiograph', isGradcamActive = false, showHeatmapAlways = false, activeView = null, canCompare = true }) {
   const [zoom, setZoom] = useState(1);
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [showOverlay, setShowOverlay] = useState(isGradcamActive || showHeatmapAlways);
@@ -28,7 +28,7 @@ export default function XRayViewer({ imageUrl = null, gradcamUrl = null, title =
     <div className="xray-view-badge">{badge}</div>
   </div>;
   return <div ref={containerRef} className="xray-viewer">
-    <ViewerControls zoom={zoom} onZoomIn={() => setZoom(value => Math.min(3, +(value + .25).toFixed(2)))} onZoomOut={() => setZoom(value => Math.max(.5, +(value - .25).toFixed(2)))} onReset={() => setZoom(1)} onFit={() => setZoom(1)} isFullscreen={isFullscreen} onToggleFullscreen={handleToggleFullscreen} isCompareMode={isCompareMode} onToggleCompare={() => setIsCompareMode(value => !value)} showOverlay={showOverlay} onToggleOverlay={() => setShowOverlay(value => !value)} overlayOpacity={overlayOpacity} onChangeOpacity={setOverlayOpacity}/>
+    <ViewerControls zoom={zoom} onZoomIn={() => setZoom(value => Math.min(3, +(value + .25).toFixed(2)))} onZoomOut={() => setZoom(value => Math.max(.5, +(value - .25).toFixed(2)))} onReset={() => setZoom(1)} onFit={() => setZoom(1)} isFullscreen={isFullscreen} onToggleFullscreen={handleToggleFullscreen} isCompareMode={isCompareMode} onToggleCompare={() => setIsCompareMode(value => !value)} showOverlay={showOverlay} onToggleOverlay={() => setShowOverlay(value => !value)} overlayOpacity={overlayOpacity} onChangeOpacity={setOverlayOpacity} canCompare={canCompare} canOverlay={Boolean(gradcamUrl)}/>
     <div className="xray-view-area">{isCompareMode ? <div className="xray-compare-grid"><div>{renderImage(activeView?.originalUrl || imageUrl, 'Original PA View')}</div><div>{renderImage(imageUrl, activeView?.name || 'Selected transformed view', true)}</div></div> : renderImage(imageUrl, activeView?.name || title, true)}</div>
   </div>;
 }
