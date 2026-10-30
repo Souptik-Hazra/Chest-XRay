@@ -27,6 +27,27 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 _analysis_slots = threading.BoundedSemaphore(value=1)
 
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_IMAGE_PIXELS = 40_000_000
+
+
+def _decode_uploaded_image(contents: bytes) -> Image.Image:
+    """Validate a PNG/JPEG payload and return an independent RGB image."""
+    try:
+        with Image.open(io.BytesIO(contents)) as probe:
+            if probe.format not in {"PNG", "JPEG"}:
+                raise HTTPException(status_code=415, detail="Only PNG and JPEG images are supported.")
+            probe.verify()
+        with Image.open(io.BytesIO(contents)) as source:
+            if source.width * source.height > MAX_IMAGE_PIXELS:
+                raise HTTPException(status_code=413, detail="Image dimensions exceed the 40-megapixel limit.")
+            return source.convert("RGB")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Upload is not a valid supported image.") from exc
+
+
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -54,20 +75,13 @@ async def model_info():
 
 @router.post("/previews")
 async def preprocessing_previews(image: UploadFile = File(...)):
-    contents = await image.read(20 * 1024 * 1024 + 1)
+    contents = await image.read(MAX_UPLOAD_BYTES + 1)
     if not contents:
         raise HTTPException(status_code=400, detail="Uploaded image is empty.")
-    if len(contents) > 20 * 1024 * 1024:
+    if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File size exceeds 20 MiB limit.")
+    img = _decode_uploaded_image(contents)
     try:
-        probe = Image.open(io.BytesIO(contents))
-        if probe.format not in {"PNG", "JPEG"}:
-            raise HTTPException(status_code=415, detail="Only PNG and JPEG images are supported.")
-        probe.verify()
-        with Image.open(io.BytesIO(contents)) as source:
-            if source.width * source.height > 40_000_000:
-                raise HTTPException(status_code=413, detail="Image dimensions exceed the 40-megapixel limit.")
-            img = source.convert("RGB")
         previews = []
         for view_id, view_name, view_image in generate_multi_views(img):
             buffer = io.BytesIO()
@@ -90,25 +104,12 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         raise HTTPException(status_code=503, detail=f"DenseNet121 checkpoint is not loaded: {model_service.load_error}")
 
     filename = Path(image.filename or "radiograph").name or "radiograph"
-    max_upload_bytes = 20 * 1024 * 1024
-    contents = await image.read(max_upload_bytes + 1)
+    contents = await image.read(MAX_UPLOAD_BYTES + 1)
     if not contents:
         raise HTTPException(status_code=400, detail="Uploaded image is empty.")
-    if len(contents) > max_upload_bytes:
+    if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File size exceeds 20 MiB limit.")
-    try:
-        probe = Image.open(io.BytesIO(contents))
-        if probe.format not in {"PNG", "JPEG"}:
-            raise HTTPException(status_code=415, detail="Only PNG and JPEG images are supported.")
-        probe.verify()
-        with Image.open(io.BytesIO(contents)) as dimensions:
-            if dimensions.width * dimensions.height > 40_000_000:
-                raise HTTPException(status_code=413, detail="Image dimensions exceed the 40-megapixel limit.")
-            img = dimensions.convert("RGB")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Upload is not a valid supported image.") from exc
+    img = _decode_uploaded_image(contents)
 
     analysis_id = f"CHX-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
     if not _analysis_slots.acquire(blocking=False):
