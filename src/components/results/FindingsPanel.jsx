@@ -25,5 +25,11 @@ export default function FindingsPanel({ analysisResult, modelInfo = null }) {
       <div className="findings-metric"><span>Uncertainty Heuristic</span><strong className={findings.oodDetected?'findings-warning':'findings-default'}>{typeof findings.oodDetected==='boolean' ? (findings.oodDetected?'Flag raised':'No flag') : 'Unavailable'}</strong></div>
       <div className="findings-metric"><span>Review Status</span><strong className={findings.reviewNeeded?'findings-warning':'findings-default'}>{typeof findings.reviewNeeded==='boolean' ? (findings.reviewNeeded?'Review suggested':'No heuristic flag') : 'Unavailable'}</strong></div>
     </div></section>
+    {(analysisResult.imageAssessment?.warnings?.length > 0 || findings.imageQualityWarnings?.length > 0) && <section className="findings-assessment" aria-live="polite">
+      <h4 className="findings-section-title">Image assessment warnings</h4>
+      <p>Automated pixel and geometry checks only. These checks do not confirm that the upload is a chest X-ray or that it is diagnostically suitable.</p>
+      <ul>{[...new Set([...(analysisResult.imageAssessment?.warnings || []), ...(findings.imageQualityWarnings || [])])].map((warning, index) => <li key={index}>{warning}</li>)}</ul>
+    </section>}
+    {analysisResult.imageAssessment?.decision === 'REVIEW' && <p className="findings-warning" role="status">Human review suggested by image-quality heuristics. This is not a diagnostic conclusion.</p>}
   </div>;
 }

@@ -62,6 +62,17 @@ class GradCAM:
         return cam, target_class, probs
 
     @staticmethod
+    def colorize_heatmap(heatmap: np.ndarray, width: int, height: int) -> np.ndarray:
+        """Return a standalone RGB JET heatmap, without blending the source image."""
+        if not isinstance(heatmap, np.ndarray) or heatmap.ndim != 2 or heatmap.size == 0:
+            raise ValueError("Expected a non-empty 2D heatmap.")
+        if width < 1 or height < 1 or not np.isfinite(heatmap).all():
+            raise ValueError("Heatmap dimensions and values must be valid.")
+        resized = cv2.resize(heatmap.astype(np.float32), (width, height), interpolation=cv2.INTER_LINEAR)
+        scaled = cv2.convertScaleAbs(np.clip(resized, 0.0, 1.0), alpha=255)
+        return cv2.cvtColor(cv2.applyColorMap(scaled, cv2.COLORMAP_JET), cv2.COLOR_BGR2RGB)
+
+    @staticmethod
     def overlay_heatmap(original_img_np: np.ndarray, heatmap: np.ndarray, alpha: float = 0.45) -> np.ndarray:
         """
         Overlays JET colormap heatmap onto the original image.

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Activity, Plus } from 'lucide-react';
 import XRayViewer from '../components/viewer/XRayViewer.jsx';
 import ImagePreparationPanel from '../components/upload/ImagePreparationPanel.jsx';
@@ -24,6 +24,7 @@ function EmptyResults({ message, onNewAnalysis }) {
 
 export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, filePreviewUrl, activeResultTab, setActiveResultTab, modelInfo = null, analysisError = '' }) {
   const [selectedViewId, setSelectedViewId] = useState('original');
+  useEffect(() => setSelectedViewId('original'), [analysisResult?.id]);
   if (!analysisResult) return <EmptyResults message={analysisError || 'Upload a chest X-ray and run an analysis to see results.'} onNewAnalysis={startNewAnalysis} />;
   const previewUrl = analysisResult.previewUrl || filePreviewUrl;
   const selectedView = analysisResult.multiview?.find(view => view.id === selectedViewId);

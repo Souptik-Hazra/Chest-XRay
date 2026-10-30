@@ -18,15 +18,20 @@ export default function XRayViewer({ imageUrl = null, gradcamUrl = null, title =
   const [overlayOpacity, setOverlayOpacity] = useState(.65);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef(null);
+  useEffect(() => {
+    const syncFullscreen = () => setIsFullscreen(document.fullscreenElement === containerRef.current);
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+  }, []);
   const handleToggleFullscreen = () => {
     if (!containerRef.current) return;
-    if (!document.fullscreenElement) containerRef.current.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => {});
-    else document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
+    if (!document.fullscreenElement) containerRef.current.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen?.().catch(() => {});
   };
   const renderImage = (src, badge, overlay = false) => <div className="xray-image-stage">
     <div className="xray-image-transform" style={{transform:`scale(${zoom})`}}>
       {src ? <img src={src} alt="Chest X-Ray" className="xray-image"/> : <div className="xray-image-empty">Upload a radiograph to view it</div>}
-      {overlay && showOverlay && gradcamUrl && <img src={gradcamUrl} alt="Grad-CAM Overlay" className="xray-heatmap" style={{opacity:overlayOpacity}}/>}
+      {overlay && showOverlay && gradcamUrl && <img src={gradcamUrl} alt="Grad-CAM heatmap" className="xray-heatmap" style={{opacity:overlayOpacity}}/>}
     </div>
     {overlay && showOverlay && gradcamUrl && <div className="xray-heatmap-label"><span/>Grad-CAM saliency (approximate)</div>}
     <div className="xray-view-badge">{badge}</div>
