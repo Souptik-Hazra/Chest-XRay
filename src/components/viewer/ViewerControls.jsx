@@ -10,7 +10,7 @@ export default function ViewerControls({ zoom, onZoomIn, onZoomOut, onReset, onF
     <div className="viewer-control-group">
       <button onClick={onToggleCompare} disabled={!canCompare} title={canCompare ? "Toggle Side-by-Side Comparison" : "Select a transformed view to compare"} className={`viewer-mode-button ${isCompareMode?'viewer-mode-button--compare':''}`}><Columns2/><span>Compare</span></button>
       <button onClick={onToggleOverlay} disabled={!canOverlay} title={canOverlay ? "Toggle Grad-CAM Overlay" : "Grad-CAM is available on the original image only"} className={`viewer-mode-button ${showOverlay?'viewer-mode-button--overlay':''}`}><Layers/><span>Grad-CAM</span></button>
-      {(showOverlay||isCompareMode)&&<div className="viewer-opacity"><Sliders/><input type="range" min="0.1" max="1.0" step="0.05" value={overlayOpacity} onChange={e=>onChangeOpacity(parseFloat(e.target.value))} title={`Overlay Opacity: ${Math.round(overlayOpacity*100)}%`}/></div>}
+      {canOverlay && showOverlay && <div className="viewer-opacity"><Sliders/><input type="range" min="0.1" max="1.0" step="0.05" value={overlayOpacity} onChange={e=>onChangeOpacity(parseFloat(e.target.value))} title={`Overlay Opacity: ${Math.round(overlayOpacity*100)}%`}/></div>}
       <span className="viewer-separator"/><button onClick={onToggleFullscreen} title={isFullscreen?'Exit Fullscreen':'Fullscreen'} className="viewer-icon-button">{isFullscreen?<Minimize2/>:<Maximize2/>}</button>
     </div>
   </div>;
