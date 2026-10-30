@@ -30,7 +30,7 @@ export function useAppState() {
     analysisControllerRef.current?.abort();
   }, []);
 
-  const cancelAnalysis = () => {
+  const handleSetActivePage = (page) => {\n    if (!analysisControllerRef.current) setActivePage(page);\n  };\n\n  const cancelAnalysis = () => {
     analysisControllerRef.current?.abort();
     analysisControllerRef.current = null;
     setIsAnalyzing(false);
@@ -83,7 +83,7 @@ export function useAppState() {
   }, [filePreviewUrl]);
 
   return {
-    activePage, setActivePage, analysisResult,
+    activePage, setActivePage: handleSetActivePage, analysisResult,
     uploadedFile, setUploadedFile: handleSetUploadedFile, filePreviewUrl,
     isAnalyzing, analysisError, activeResultTab, setActiveResultTab,
     isBackendConnected, startNewAnalysis, runAnalysis,
