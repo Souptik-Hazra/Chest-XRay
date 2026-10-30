@@ -30,6 +30,22 @@ export async function checkBackendHealth() {
   catch (error) { return { apiOnline: false, modelReady: false, error: error.message }; }
 }
 
+export async function fetchPreprocessingPreviews(file, options = {}) {
+  if (!(file instanceof File) || !file.size || !['image/png', 'image/jpeg'].includes(file.type)) {
+    throw new Error('Choose a non-empty PNG or JPEG image before previewing.');
+  }
+  const body = new FormData();
+  body.append('image', file);
+  const data = await requestJson('/previews', { method: 'POST', headers: {}, body, signal: options.signal });
+  if (!Array.isArray(data?.views) || data.views.length !== 5 ||
+      data.views.some(view => !view || typeof view.id !== 'string' ||
+        typeof view.name !== 'string' || typeof view.previewUrl !== 'string' ||
+        !view.previewUrl.startsWith('data:image/'))) {
+    throw new Error('Malformed preprocessing preview response.');
+  }
+  return data.views;
+}
+
 export async function analyzeImage(file, options = {}) {
   if (!(file instanceof File) || !file.size || !['image/png', 'image/jpeg'].includes(file.type)) {
     throw new Error('Choose a non-empty PNG or JPEG image before analysis.');
