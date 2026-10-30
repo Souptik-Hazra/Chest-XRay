@@ -15,7 +15,7 @@ import numpy as np
 from ..core.config import settings
 from ..models.densenet import model_service, CLASS_COLORS
 from ..models.gradcam import GradCAM
-from ..services.multiview import run_multiview_inference
+from ..services.multiview import generate_multi_views, run_multiview_inference
 from ..services.quality_ood import check_image_quality, compute_uncertainty_metrics
 from ..services.report import generate_clinical_report
 from ..services.analysis_graph import build_analysis_graph
@@ -53,6 +53,38 @@ async def model_info():
         isLoaded=model_service.is_loaded,
         loadError=model_service.load_error, metrics=BASELINE_METRICS or {}
     )
+
+
+@router.post("/previews")
+async def preprocessing_previews(image: UploadFile = File(...)):
+    contents = await image.read(20 * 1024 * 1024 + 1)
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty.")
+    if len(contents) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File size exceeds 20 MiB limit.")
+    try:
+        probe = Image.open(io.BytesIO(contents))
+        if probe.format not in {"PNG", "JPEG"}:
+            raise HTTPException(status_code=415, detail="Only PNG and JPEG images are supported.")
+        probe.verify()
+        with Image.open(io.BytesIO(contents)) as source:
+            if source.width * source.height > 40_000_000:
+                raise HTTPException(status_code=413, detail="Image dimensions exceed the 40-megapixel limit.")
+            img = source.convert("RGB")
+        previews = []
+        for view_id, view_name, view_image in generate_multi_views(img):
+            buffer = io.BytesIO()
+            view_image.convert("RGB").save(buffer, format="JPEG", quality=72, optimize=True)
+            previews.append({
+                "id": view_id,
+                "name": view_name,
+                "previewUrl": "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii"),
+            })
+        return {"views": previews}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Upload is not a valid supported image.") from exc
 
 
 @router.post("/analyze", response_model=AnalysisResponse)
