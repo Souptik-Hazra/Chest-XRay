@@ -165,6 +165,25 @@ class TestDeterministicServices(unittest.TestCase):
         self.assertEqual(data["reportModel"], "configured-model")
 
 
+class TestGradCAMRendering(unittest.TestCase):
+    def test_colorized_heatmap_matches_source_dimensions_without_compositing(self):
+        import numpy as np
+        from app.models.gradcam import GradCAM
+
+        heatmap = np.array([[0.0, 0.5], [0.75, 1.0]], dtype=np.float32)
+        rendered = GradCAM.colorize_heatmap(heatmap, width=80, height=60)
+        self.assertEqual(rendered.shape, (60, 80, 3))
+        self.assertEqual(rendered.dtype, np.uint8)
+        self.assertTrue(np.isfinite(rendered).all())
+
+    def test_colorized_heatmap_rejects_non_finite_values(self):
+        import numpy as np
+        from app.models.gradcam import GradCAM
+
+        with self.assertRaises(ValueError):
+            GradCAM.colorize_heatmap(np.array([[float("nan")]], dtype=np.float32), 10, 10)
+
+
 class TestAnalyzeEndpoint(unittest.TestCase):
     def setUp(self):
         self.app = FastAPI()
