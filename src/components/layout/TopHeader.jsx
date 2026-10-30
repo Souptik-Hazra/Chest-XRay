@@ -1,6 +1,7 @@
 import './layout.css';
 
-export default function TopHeader({ isModelReady = false }) {
+export default function TopHeader({ isModelReady = false, modelInfo = null }) {
+  const architecture = modelInfo?.architecture || 'Chest X-ray model';
   return (
     <header className="top-header">
       <div className="top-header__brand">
@@ -18,8 +19,8 @@ export default function TopHeader({ isModelReady = false }) {
         <span className="top-header__status-dot" />
         <span>
           {isModelReady
-            ? 'DenseNet121 AI Engine: Connected'
-            : 'DenseNet121 AI Engine: Unavailable'}
+            ? '{architecture} AI Engine: Connected'
+            : '{architecture} AI Engine: Unavailable'}
         </span>
       </div>
     </header>
