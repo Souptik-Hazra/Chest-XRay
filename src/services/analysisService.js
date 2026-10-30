@@ -12,6 +12,19 @@ async function requestJson(path, options = {}) {
   return response.json();
 }
 
+export async function fetchModelInfo() {
+  try {
+    const info = await requestJson('/model/info');
+    if (!info || typeof info.architecture !== 'string' || !Array.isArray(info.classes) ||
+        typeof info.device !== 'string' || typeof info.isLoaded !== 'boolean') {
+      throw new Error('Malformed model metadata response.');
+    }
+    return info;
+  } catch {
+    return null;
+  }
+}
+
 export async function checkBackendHealth() {
   try { const health = await requestJson('/health'); return { ...health, apiOnline: true, modelReady: health.modelLoaded === true }; }
   catch (error) { return { apiOnline: false, modelReady: false, error: error.message }; }
