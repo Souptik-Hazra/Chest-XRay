@@ -1,6 +1,7 @@
+import math
 import os
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -27,6 +28,25 @@ class Settings(BaseModel):
     IMAGE_BRIGHT_LUMINANCE_THRESHOLD: float = Field(default_factory=lambda: float(os.getenv("IMAGE_BRIGHT_LUMINANCE_THRESHOLD", "220.0")))
     IMAGE_LOW_CONTRAST_STD_THRESHOLD: float = Field(default_factory=lambda: float(os.getenv("IMAGE_LOW_CONTRAST_STD_THRESHOLD", "25.0")))
     IMAGE_LOW_RESOLUTION_WARNING_DIMENSION: int = Field(default_factory=lambda: int(os.getenv("IMAGE_LOW_RESOLUTION_WARNING_DIMENSION", "64")))
+
+    @field_validator(
+        "IMAGE_BLUR_VARIANCE_THRESHOLD",
+        "IMAGE_DARK_LUMINANCE_THRESHOLD",
+        "IMAGE_BRIGHT_LUMINANCE_THRESHOLD",
+        "IMAGE_LOW_CONTRAST_STD_THRESHOLD",
+    )
+    @classmethod
+    def validate_finite_non_negative_thresholds(cls, value: float) -> float:
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("Image screening thresholds must be finite and non-negative.")
+        return value
+
+    @field_validator("IMAGE_LOW_RESOLUTION_WARNING_DIMENSION")
+    @classmethod
+    def validate_low_resolution_dimension(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("IMAGE_LOW_RESOLUTION_WARNING_DIMENSION must be greater than zero.")
+        return value
 
 
 settings = Settings()
