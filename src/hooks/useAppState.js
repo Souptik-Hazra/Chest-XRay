@@ -30,7 +30,11 @@ export function useAppState() {
     analysisControllerRef.current?.abort();
   }, []);
 
-  const handleSetActivePage = (page) => {\n    if (!analysisControllerRef.current) setActivePage(page);\n  };\n\n  const cancelAnalysis = () => {
+  const handleSetActivePage = (page) => {
+    if (!analysisControllerRef.current) setActivePage(page);
+  };
+
+  const cancelAnalysis = () => {
     analysisControllerRef.current?.abort();
     analysisControllerRef.current = null;
     setIsAnalyzing(false);
