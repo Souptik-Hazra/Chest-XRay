@@ -28,13 +28,15 @@ export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, 
   const previewUrl = analysisResult.previewUrl || filePreviewUrl;
   const selectedView = analysisResult.multiview?.find(view => view.id === selectedViewId);
   const isOriginalView = selectedViewId === 'original';
+  const firstTransformedView = analysisResult.multiview?.find(view => view.id !== 'original');
+  const hasComparisonView = Boolean(firstTransformedView);
   const activeTab = RESULT_TABS.find(tab => tab.id === activeResultTab) || RESULT_TABS[0];
   const ActivePanel = activeTab.Component;
   const panelProps = { analysisResult, previewUrl, confidence: analysisResult.confidence, gradcamUrl: analysisResult.gradcamUrl, modelInfo };
   return <PageLayout className="results-page">
     <div className="results-grid">
       <div className="results-viewer-column">
-        <div className="results-viewer"><XRayViewer imageUrl={selectedView?.previewUrl || previewUrl} gradcamUrl={isOriginalView ? analysisResult.gradcamUrl : null} title={`Case: ${analysisResult.id} • ${analysisResult.filename}`} isGradcamActive={activeResultTab === 'gradcam' && isOriginalView} activeView={{name:selectedView?.name || 'Original PA View', originalUrl:previewUrl}} canCompare={!isOriginalView} /></div>
+        <div className="results-viewer"><XRayViewer imageUrl={selectedView?.previewUrl || previewUrl} gradcamUrl={isOriginalView ? analysisResult.gradcamUrl : null} title={`Case: ${analysisResult.id} • ${analysisResult.filename}`} isGradcamActive={activeResultTab === 'gradcam' && isOriginalView} activeView={{name:selectedView?.name || 'Original PA View', originalUrl:previewUrl}} canCompare={hasComparisonView} onCompareStart={() => { if (isOriginalView && firstTransformedView) setSelectedViewId(firstTransformedView.id); }} /></div>
         <div className="results-preparation"><ImagePreparationPanel filePreviewUrl={previewUrl} isCompact selectedViewId={selectedViewId} onSelectView={setSelectedViewId} actualViews={analysisResult.multiview || []} /></div>
       </div>
       <Card padding="card-padding-none" className="results-detail-card">
