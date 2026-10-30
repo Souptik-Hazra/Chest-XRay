@@ -5,11 +5,11 @@ import ImagePreparationPanel from '../components/upload/ImagePreparationPanel.js
 import { PageLayout, PageHeader, Card } from '../components/shared/index.js';
 import './pages.css';
 
-export default function NewAnalysisPage({ uploadedFile, setUploadedFile, filePreviewUrl, isAnalyzing, runAnalysis, isBackendConnected = false, analysisError = '' }) {
+export default function NewAnalysisPage({ uploadedFile, setUploadedFile, filePreviewUrl, isAnalyzing, runAnalysis, isBackendConnected = false, isModelReady = false, analysisError = '' }) {
   return (
     <PageLayout>
       <PageHeader title="Ingestion & Preprocessing Workspace" subtitle="Upload a real chest radiograph for DenseNet121 inference">
-        <span className={isBackendConnected ? 'page-status page-status--connected' : 'page-status page-status--disconnected'}>{isBackendConnected ? 'Backend reachable' : 'Backend unavailable'}</span>
+        <span className={isBackendConnected ? 'page-status page-status--connected' : 'page-status page-status--disconnected'}>{!isBackendConnected ? 'Backend unavailable' : isModelReady ? 'Model ready' : 'Backend reachable · Model loading'}</span>
       </PageHeader>
       {analysisError && <p role="alert" className="page-alert"><AlertCircle />{analysisError}</p>}
       <div className="new-analysis-grid">
@@ -18,7 +18,7 @@ export default function NewAnalysisPage({ uploadedFile, setUploadedFile, filePre
       </div>
       <Card padding="card-padding-md" className="analysis-action-bar">
         <p className="page-muted">{isAnalyzing ? 'Analysis is running. Keep this page open until it finishes.' : isBackendConnected ? 'FastAPI / PyTorch backend is reachable.' : 'Backend unavailable. No simulated prediction will be returned.'}</p>
-        <button onClick={() => runAnalysis(uploadedFile)} disabled={!uploadedFile || isAnalyzing || !isBackendConnected} className="page-action page-action--primary page-action--analyze">
+        <button onClick={() => runAnalysis(uploadedFile)} disabled={!uploadedFile || isAnalyzing || !isModelReady} className="page-action page-action--primary page-action--analyze">
           {isAnalyzing ? <><Loader2 className="spin-icon"/>Running analysis…</> : <><Play/>Analyze Radiograph</>}
         </button>
       </Card>
