@@ -16,7 +16,7 @@ from ..models.densenet import model_service, CLASS_COLORS
 from ..models.gradcam import GradCAM
 from ..services.multiview import run_multiview_inference
 from ..services.quality_ood import check_image_quality, compute_uncertainty_metrics
-from ..services.report import generate_clinical_report
+from ..services.report import generate_clinical_report, build_report_export
 from ..services.analysis_graph import build_analysis_graph
 from ..services.lesion_segmentation import lesion_segmentation_service
 from ..schemas.analysis import AnalysisResponse, ModelInfoResponse, HealthResponse
@@ -186,6 +186,7 @@ async def analyze_radiograph(image: UploadFile = File(...)):
         "report": result["report"], "gradcamUrl": result.get("gradcam_url"),
         "segmentation": segmentation, "status": "completed",
     }
+    record["report"]["exportText"] = build_report_export(record)
     return record
 
 
