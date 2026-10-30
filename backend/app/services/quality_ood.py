@@ -1,44 +1,84 @@
 import cv2
 import numpy as np
 from PIL import Image
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
+
+# These are screening heuristics, not validated radiology quality thresholds.
+MIN_IMAGE_DIMENSION = 64
+BLUR_VARIANCE_THRESHOLD = 60.0
+DARK_LUMINANCE_THRESHOLD = 35.0
+BRIGHT_LUMINANCE_THRESHOLD = 220.0
+LOW_CONTRAST_STD_THRESHOLD = 25.0
 
 
 def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
-    """Return basic pixel heuristics, not a clinically validated quality assessment."""
+    """Return deterministic pixel and geometry measurements for review."""
     if not isinstance(img_pil, Image.Image) or img_pil.width < 1 or img_pil.height < 1:
         raise ValueError("Image quality assessment requires a valid, non-empty image.")
 
+    width, height = img_pil.size
     img_rgb = np.asarray(img_pil.convert("RGB"))
     img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
+
     laplacian = cv2.Laplacian(img_gray, cv2.CV_64F)
     _, laplacian_std = cv2.meanStdDev(laplacian)
     laplacian_var = float(laplacian_std[0, 0] ** 2)
-    is_sharp = laplacian_var > 60.0
     mean_values, std_values = cv2.meanStdDev(img_gray)
     mean_lum = float(mean_values[0, 0])
     std_lum = float(std_values[0, 0])
-    if mean_lum < 35.0:
+
+    is_sharp = laplacian_var > BLUR_VARIANCE_THRESHOLD
+    if mean_lum < DARK_LUMINANCE_THRESHOLD:
+        brightness_status = "dark"
         exposure = "Dark intensity"
-    elif mean_lum > 220.0:
+    elif mean_lum > BRIGHT_LUMINANCE_THRESHOLD:
+        brightness_status = "bright"
         exposure = "Bright intensity"
-    elif std_lum < 25.0:
-        exposure = "Low intensity contrast"
     else:
+        brightness_status = "pass"
         exposure = "Intensity range not flagged"
+
+    contrast_status = "low" if std_lum < LOW_CONTRAST_STD_THRESHOLD else "pass"
+    if contrast_status == "low":
+        exposure = "Low intensity contrast"
+
+    aspect_ratio = float(width / height)
+    dimensions_status = "pass" if min(width, height) >= MIN_IMAGE_DIMENSION else "too_small"
+    aspect_ratio_status = "review" if aspect_ratio < 0.4 or aspect_ratio > 2.5 else "pass"
+
     warnings = []
     if not is_sharp:
         warnings.append("Low Laplacian-variance heuristic; visually inspect the image.")
-    if exposure != "Intensity range not flagged":
-        warnings.append(f"Image intensity heuristic: {exposure}.")
+    if brightness_status != "pass":
+        warnings.append(f"Brightness heuristic flagged the image as {brightness_status}.")
+    if contrast_status == "low":
+        warnings.append("Low grayscale intensity contrast heuristic.")
+    if dimensions_status != "pass":
+        warnings.append(
+            f"Image dimensions {width}x{height} are below the minimum "
+            f"{MIN_IMAGE_DIMENSION}-pixel screening threshold."
+        )
+    if aspect_ratio_status == "review":
+        warnings.append("Unusual image aspect ratio; visually inspect positioning and cropping.")
+
     return {
         "rating": "Heuristic flags present" if warnings else "No heuristic flags",
         "isSharp": is_sharp,
+        "sharpnessStatus": "pass" if is_sharp else "review",
         "laplacianVariance": round(laplacian_var, 1),
         "meanLuminance": round(mean_lum, 1),
+        "brightnessStatus": brightness_status,
+        "contrastStd": round(std_lum, 1),
+        "contrastStatus": contrast_status,
         "exposureStatus": exposure,
+        "width": width,
+        "height": height,
+        "aspectRatio": round(aspect_ratio, 3),
+        "dimensionsStatus": dimensions_status,
+        "aspectRatioStatus": aspect_ratio_status,
         "warnings": warnings,
-        "method": "basic_pixel_heuristics_not_clinically_validated",
+        "method": "basic_pixel_and_geometry_heuristics_not_clinically_validated",
     }
 
 
