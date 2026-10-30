@@ -32,6 +32,10 @@ export default function SegmentationPanel({ analysisResult = null }) {
     <div className="segmentation-image-wrap">
       <img src={showMask ? segmentation.maskUrl : segmentation.overlayUrl} alt={showMask ? 'Predicted binary opacity mask' : 'Chest X-ray with predicted opacity regions overlaid'} />
     </div>
+    {segmentation.status === 'no_region_detected' && <Callout icon={AlertCircle} variant="info">
+      <strong>No opacity region passed the selected threshold ({segmentation.threshold}).</strong>
+      The segmentation model returned no pixels for the displayed mask. The image above is therefore shown without a colored overlay. This does not mean the X-ray is normal; it means this model did not produce a region above the current threshold.
+    </Callout>}
     <div className="segmentation-metrics">
       <div><span>Predicted mask area</span><strong>{segmentation.areaPercent}%</strong></div>
       <div><span>Mean score in mask</span><strong>{(segmentation.meanMaskScore * 100).toFixed(1)}%</strong></div>
