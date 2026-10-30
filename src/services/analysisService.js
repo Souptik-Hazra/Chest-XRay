@@ -13,8 +13,8 @@ async function requestJson(path, options = {}) {
 }
 
 export async function checkBackendHealth() {
-  try { const health = await requestJson('/health'); return { online: health.modelLoaded === true, apiOnline: true, ...health }; }
-  catch (error) { return { online: false, apiOnline: false, error: error.message }; }
+  try { const health = await requestJson('/health'); return { ...health, apiOnline: true, modelReady: health.modelLoaded === true }; }
+  catch (error) { return { apiOnline: false, modelReady: false, error: error.message }; }
 }
 
 export async function analyzeImage(file, options = {}) {
