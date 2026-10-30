@@ -1,7 +1,7 @@
 import math
 import os
 from pathlib import Path
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -10,6 +10,8 @@ DEFAULT_MODEL_DIR = REPO_ROOT / "Pneumonia"
 
 
 class Settings(BaseModel):
+    model_config = ConfigDict(validate_default=True)
+
     PROJECT_NAME: str = "ChestX AI - Multi-Agent Chest X-Ray Analysis System"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api"
