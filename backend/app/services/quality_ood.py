@@ -6,13 +6,6 @@ from typing import Any, Dict, List
 from ..core.config import settings
 
 
-# These are configurable screening heuristics, not validated radiology thresholds.
-BLUR_VARIANCE_THRESHOLD = settings.IMAGE_BLUR_VARIANCE_THRESHOLD
-DARK_LUMINANCE_THRESHOLD = settings.IMAGE_DARK_LUMINANCE_THRESHOLD
-BRIGHT_LUMINANCE_THRESHOLD = settings.IMAGE_BRIGHT_LUMINANCE_THRESHOLD
-LOW_CONTRAST_STD_THRESHOLD = settings.IMAGE_LOW_CONTRAST_STD_THRESHOLD
-LOW_RESOLUTION_WARNING_DIMENSION = settings.IMAGE_LOW_RESOLUTION_WARNING_DIMENSION
-
 
 def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
     """Return deterministic pixel and geometry measurements for review."""
@@ -30,19 +23,19 @@ def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
     mean_lum = float(mean_values[0, 0])
     std_lum = float(std_values[0, 0])
 
-    is_sharp = laplacian_var > BLUR_VARIANCE_THRESHOLD
-    if mean_lum < DARK_LUMINANCE_THRESHOLD:
+    is_sharp = laplacian_var > settings.IMAGE_BLUR_VARIANCE_THRESHOLD
+    if mean_lum < settings.IMAGE_DARK_LUMINANCE_THRESHOLD:
         brightness_status = "dark"
-    elif mean_lum > BRIGHT_LUMINANCE_THRESHOLD:
+    elif mean_lum > settings.IMAGE_BRIGHT_LUMINANCE_THRESHOLD:
         brightness_status = "bright"
     else:
         brightness_status = "pass"
 
-    contrast_status = "low" if std_lum < LOW_CONTRAST_STD_THRESHOLD else "pass"
+    contrast_status = "low" if std_lum < settings.IMAGE_LOW_CONTRAST_STD_THRESHOLD else "pass"
     aspect_ratio = float(width / height)
     dimensions_status = (
         "low_resolution_warning"
-        if min(width, height) < LOW_RESOLUTION_WARNING_DIMENSION
+        if min(width, height) < settings.IMAGE_LOW_RESOLUTION_WARNING_DIMENSION
         else "pass"
     )
     aspect_ratio_status = "review" if aspect_ratio < 0.4 or aspect_ratio > 2.5 else "pass"
@@ -57,7 +50,7 @@ def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
     if dimensions_status != "pass":
         warnings.append(
             f"Image dimensions {width}x{height} are below the "
-            f"{LOW_RESOLUTION_WARNING_DIMENSION}-pixel low-resolution warning threshold."
+            f"{settings.IMAGE_LOW_RESOLUTION_WARNING_DIMENSION}-pixel low-resolution warning threshold."
         )
     if aspect_ratio_status == "review":
         warnings.append("Unusual image aspect ratio; visually inspect positioning and cropping.")
