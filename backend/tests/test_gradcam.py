@@ -48,6 +48,18 @@ class TestGradCAM(unittest.TestCase):
         finally:
             cam.remove_hooks()
 
+    def test_generates_heatmap_when_outer_context_disables_gradients(self):
+        model = TinyClassifier().eval()
+        cam = GradCAM(model, target_layer=model.features)
+        try:
+            with torch.no_grad():
+                heatmap, _, probabilities = cam.generate_heatmap(torch.rand(1, 1, 16, 16), 1)
+            self.assertTrue(np.isfinite(heatmap).all())
+            self.assertGreater(float(heatmap.max()), 0.0)
+            self.assertAlmostEqual(float(probabilities.sum()), 1.0, places=5)
+        finally:
+            cam.remove_hooks()
+
     def test_overlay_rejects_invalid_inputs(self):
         with self.assertRaises(ValueError):
             GradCAM.overlay_heatmap(np.zeros((10, 10)), np.zeros((4, 4)))
