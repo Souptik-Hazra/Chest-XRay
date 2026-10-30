@@ -27,6 +27,7 @@ class ReportSchema(BaseModel):
     reviewRecommendation: Optional[str] = None
     reportSource: Optional[str] = None
     reportModel: Optional[str] = None
+    exportText: Optional[str] = None
 
 class SegmentationSchema(BaseModel):
     status: str
