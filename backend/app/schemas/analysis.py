@@ -64,7 +64,6 @@ class ModelInfoResponse(BaseModel):
     architecture: str = "DenseNet121"
     classes: List[str]
     device: str
-    checkpointPath: str
     isLoaded: bool
     loadError: Optional[str] = None
     metrics: Dict[str, Any]
