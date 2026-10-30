@@ -171,7 +171,7 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
             "laplacianVariance": quality["laplacianVariance"],
             "meanLuminance": quality["meanLuminance"],
         }
-        return {"uncertainty": uncertainty, "findings": findings}
+        return {"findings": findings}
 
     def gradcam_node(state):
         if cancel_event.is_set():
