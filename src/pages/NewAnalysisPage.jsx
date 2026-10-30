@@ -15,7 +15,7 @@ export default function NewAnalysisPage({ uploadedFile, setUploadedFile, filePre
       {analysisError && <p role="alert" className="page-alert"><AlertCircle />{analysisError}</p>}
       <div className="new-analysis-grid">
         <UploadPanel uploadedFile={uploadedFile} filePreviewUrl={filePreviewUrl} onFileSelect={setUploadedFile} onFileRemove={() => setUploadedFile(null)} />
-        <ImagePreparationPanel filePreviewUrl={filePreviewUrl} selectedViewId={selectedView} onSelectView={view => setSelectedView(view.id)} />
+        <ImagePreparationPanel filePreviewUrl={filePreviewUrl} selectedViewId={selectedView} onSelectView={setSelectedView} />
       </div>
       <Card padding="card-padding-md" className="analysis-action-bar">
         <p className="page-muted">{isBackendConnected ? 'FastAPI / PyTorch backend is reachable.' : 'Backend unavailable. No simulated prediction will be returned.'}</p>

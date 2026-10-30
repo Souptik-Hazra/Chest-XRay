@@ -6,6 +6,11 @@ export default function XRayViewer({ imageUrl = null, gradcamUrl = null, title =
   const [zoom, setZoom] = useState(1);
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [showOverlay, setShowOverlay] = useState(isGradcamActive || showHeatmapAlways);
+  const [prevGradcamActive, setPrevGradcamActive] = useState(isGradcamActive);
+  if (prevGradcamActive !== isGradcamActive) {
+    setPrevGradcamActive(isGradcamActive);
+    if (isGradcamActive) setShowOverlay(true);
+  }
   const [overlayOpacity, setOverlayOpacity] = useState(.65);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef(null);
