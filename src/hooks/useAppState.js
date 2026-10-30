@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { analyzeImage, checkBackendHealth } from '../services/analysisService.js';
 
 export function useAppState() {
@@ -10,6 +10,7 @@ export function useAppState() {
   const [analysisError, setAnalysisError] = useState('');
   const [activeResultTab, setActiveResultTab] = useState('summary');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const analysisControllerRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -25,7 +26,18 @@ export function useAppState() {
     };
   }, []);
 
+  useEffect(() => () => {
+    analysisControllerRef.current?.abort();
+  }, []);
+
+  const cancelAnalysis = () => {
+    analysisControllerRef.current?.abort();
+    analysisControllerRef.current = null;
+    setIsAnalyzing(false);
+  };
+
   const startNewAnalysis = () => {
+    cancelAnalysis();
     setActivePage('new-analysis');
     setAnalysisResult(null);
     setAnalysisError('');
@@ -34,23 +46,33 @@ export function useAppState() {
   };
 
   const handleSetUploadedFile = (file) => {
+    if (analysisControllerRef.current) cancelAnalysis();
     setUploadedFile(file);
     setFilePreviewUrl(file ? URL.createObjectURL(file) : null);
+    setAnalysisResult(null);
     setAnalysisError('');
   };
 
   const runAnalysis = async (file) => {
+    if (!file || analysisControllerRef.current) return;
+    const controller = new AbortController();
+    analysisControllerRef.current = controller;
     setIsAnalyzing(true);
     setAnalysisError('');
     try {
-      const result = await analyzeImage(file);
+      const result = await analyzeImage(file, { signal: controller.signal });
+      if (analysisControllerRef.current !== controller || controller.signal.aborted) return;
       setAnalysisResult({ ...result, previewUrl: filePreviewUrl });
       setActivePage('results');
     } catch (err) {
+      if (controller.signal.aborted || analysisControllerRef.current !== controller) return;
       setAnalysisError(err.message || 'Analysis failed. Check the backend and try again.');
       setAnalysisResult(null);
     } finally {
-      setIsAnalyzing(false);
+      if (analysisControllerRef.current === controller) {
+        analysisControllerRef.current = null;
+        setIsAnalyzing(false);
+      }
     }
   };
 
