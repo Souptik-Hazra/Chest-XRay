@@ -22,7 +22,7 @@ function EmptyResults({ message, onNewAnalysis }) {
   return <div className="results-empty"><Activity /><h3>No completed analysis available</h3><p>{message}</p><button onClick={onNewAnalysis} className="page-action"><Plus />Upload X-ray</button></div>;
 }
 
-export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, filePreviewUrl, activeResultTab, setActiveResultTab, analysisError = '' }) {
+export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, filePreviewUrl, activeResultTab, setActiveResultTab, modelInfo = null, analysisError = '' }) {
   const [selectedViewId, setSelectedViewId] = useState('original');
   if (!analysisResult) return <EmptyResults message={analysisError || 'Upload a chest X-ray and run an analysis to see results.'} onNewAnalysis={startNewAnalysis} />;
   const previewUrl = analysisResult.previewUrl || filePreviewUrl;
@@ -30,7 +30,7 @@ export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, 
   const isOriginalView = selectedViewId === 'original';
   const activeTab = RESULT_TABS.find(tab => tab.id === activeResultTab) || RESULT_TABS[0];
   const ActivePanel = activeTab.Component;
-  const panelProps = { analysisResult, previewUrl, confidence: analysisResult.confidence, gradcamUrl: analysisResult.gradcamUrl };
+  const panelProps = { analysisResult, previewUrl, confidence: analysisResult.confidence, gradcamUrl: analysisResult.gradcamUrl, modelInfo };
   return <PageLayout className="results-page">
     <div className="results-grid">
       <div className="results-viewer-column">
@@ -40,7 +40,7 @@ export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, 
       <Card padding="card-padding-none" className="results-detail-card">
         <div className="results-tabs"><TabNav tabs={RESULT_TABS.map(({id,label})=>({id,label}))} activeTab={activeTab.id} onSelectTab={setActiveResultTab} variant="underline" /></div>
         <div className="results-panel">{activeTab.id === 'gradcam' ? <ActivePanel previewUrl={previewUrl} gradcamUrl={analysisResult.gradcamUrl} /> : activeTab.id === 'segmentation' ? <ActivePanel analysisResult={analysisResult} /> : <ActivePanel {...panelProps} />}</div>
-        <div className="results-footer"><span>Model: DenseNet121</span><span>Research prototype</span></div>
+        <div className="results-footer"><span>Model: {modelInfo?.architecture || 'Metadata unavailable'}</span><span>{modelInfo?.device ? `Device: ${modelInfo.device}` : 'Research prototype'}</span></div>
       </Card>
     </div>
   </PageLayout>;
