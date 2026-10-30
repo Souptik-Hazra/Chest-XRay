@@ -16,45 +16,38 @@ class GradCAM:
         else:
             self.target_layer = target_layer
 
-        self.gradients = None
         self.activations = None
-        self.hooks = []
-
-        # Register forward and backward hooks
-        h1 = self.target_layer.register_forward_hook(self._save_activation)
-        h2 = self.target_layer.register_full_backward_hook(self._save_gradient)
-        self.hooks.extend([h1, h2])
+        self.hooks = [
+            self.target_layer.register_forward_hook(self._save_activation)
+        ]
 
     def _save_activation(self, module, input, output):
         self.activations = output
 
-    def _save_gradient(self, module, grad_input, grad_output):
-        self.gradients = grad_output[0]
-
     def generate_heatmap(self, input_tensor: torch.Tensor, target_class: Optional[int] = None) -> Tuple[np.ndarray, int, np.ndarray]:
         """
-        Generates Grad-CAM heatmap for the specified target class (or top predicted class).
+        Generates Grad-CAM using gradients with respect to the captured feature maps.
         """
-        self.gradients = None
         self.activations = None
-        self.model.zero_grad()
-        output = self.model(input_tensor)
-        if output.ndim != 2 or output.shape[0] != 1 or output.shape[1] < 1:
-            raise ValueError("Grad-CAM expects model logits with shape [1, num_classes].")
+        with torch.enable_grad():
+            output = self.model(input_tensor)
+            if output.ndim != 2 or output.shape[0] != 1 or output.shape[1] < 1:
+                raise ValueError("Grad-CAM expects model logits with shape [1, num_classes].")
 
-        if target_class is None:
-            target_class = int(torch.argmax(output, dim=1).item())
-        if not isinstance(target_class, int) or target_class < 0 or target_class >= output.shape[1]:
-            raise ValueError("Grad-CAM target class is outside the model output range.")
+            if target_class is None:
+                target_class = int(torch.argmax(output, dim=1).item())
+            if not isinstance(target_class, int) or target_class < 0 or target_class >= output.shape[1]:
+                raise ValueError("Grad-CAM target class is outside the model output range.")
+            if self.activations is None or not self.activations.requires_grad:
+                raise RuntimeError("Grad-CAM target layer did not produce differentiable activations.")
 
-        score = output[0, target_class]
-        score.backward()
-        probs = F.softmax(output, dim=1)[0].detach().cpu().numpy()
+            score = output[0, target_class]
+            gradients = torch.autograd.grad(
+                score, self.activations, retain_graph=False, create_graph=False
+            )[0]
+            probs = F.softmax(output, dim=1)[0].detach().cpu().numpy()
 
-        if self.gradients is None or self.activations is None:
-            return np.zeros((7, 7), dtype=np.float32), target_class, probs
-
-        gradients = self.gradients[0].detach().cpu().numpy()
+        gradients = gradients[0].detach().cpu().numpy()
         activations = self.activations[0].detach().cpu().numpy()
         weights = np.mean(gradients, axis=(1, 2))
         cam = np.sum(activations * weights[:, None, None], axis=0)
