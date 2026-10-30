@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { analyzeImage, checkBackendHealth, fetchModelInfo } from '../services/analysisService.js';
+import { analyzeImage, checkBackendHealth, fetchModelInfo, fetchPreprocessingPreviews } from '../services/analysisService.js';
 
 export function useAppState() {
   const [activePage, setActivePage] = useState('new-analysis');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState(null);
+  const [preprocessingViews, setPreprocessingViews] = useState([]);
+  const [isLoadingPreviews, setIsLoadingPreviews] = useState(false);
+  const previewControllerRef = useRef(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const [activeResultTab, setActiveResultTab] = useState('summary');
@@ -37,6 +40,7 @@ export function useAppState() {
 
   useEffect(() => () => {
     analysisControllerRef.current?.abort();
+    previewControllerRef.current?.abort();
   }, []);
 
   const handleSetActivePage = (page) => {
@@ -60,10 +64,35 @@ export function useAppState() {
 
   const handleSetUploadedFile = (file) => {
     if (analysisControllerRef.current) cancelAnalysis();
+    previewControllerRef.current?.abort();
+    previewControllerRef.current = null;
     setUploadedFile(file);
     setFilePreviewUrl(file ? URL.createObjectURL(file) : null);
+    setPreprocessingViews([]);
+    setIsLoadingPreviews(Boolean(file));
     setAnalysisResult(null);
     setAnalysisError('');
+    if (file) {
+      const controller = new AbortController();
+      previewControllerRef.current = controller;
+      fetchPreprocessingPreviews(file, { signal: controller.signal })
+        .then(views => {
+          if (previewControllerRef.current === controller && !controller.signal.aborted) {
+            setPreprocessingViews(views);
+          }
+        })
+        .catch(error => {
+          if (!controller.signal.aborted && previewControllerRef.current === controller) {
+            setAnalysisError(error.message || 'Could not generate preprocessing previews.');
+          }
+        })
+        .finally(() => {
+          if (previewControllerRef.current === controller) {
+            previewControllerRef.current = null;
+            setIsLoadingPreviews(false);
+          }
+        });
+    }
   };
 
   const runAnalysis = async (file) => {
@@ -98,6 +127,7 @@ export function useAppState() {
   return {
     activePage, setActivePage: handleSetActivePage, analysisResult,
     uploadedFile, setUploadedFile: handleSetUploadedFile, filePreviewUrl,
+    preprocessingViews, isLoadingPreviews,
     isAnalyzing, analysisError, activeResultTab, setActiveResultTab,
     isBackendConnected, isModelReady, modelInfo, startNewAnalysis, runAnalysis,
   };
