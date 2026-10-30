@@ -165,3 +165,63 @@ def generate_clinical_report(
     }
 
 
+
+
+
+def build_report_export(record: Dict[str, Any]) -> str:
+    """Build the canonical plain-text export for a completed analysis record."""
+    report = record.get("report") or {}
+    findings = record.get("findings") or {}
+    timestamp = str(record.get("timestamp") or "Unavailable")
+    if timestamp.endswith("Z"):
+        timestamp = timestamp[:-1] + " UTC"
+
+    probabilities = record.get("probabilities") or []
+    probability_lines = [
+        f"- {item.get('label', 'Unknown')}: {float(item.get('value', 0)) * 100:.1f}%"
+        for item in probabilities
+    ]
+    uncertainty = findings.get("oodDetected")
+    uncertainty_label = (
+        "Flagged" if uncertainty is True else
+        "Not flagged" if uncertainty is False else "Unavailable"
+    )
+    lines = [
+        "CHESTX AI RESEARCH OUTPUT",
+        f"Case ID: {record.get('id', 'Unavailable')}",
+        f"Timestamp: {timestamp}",
+        f"Input: {record.get('filename', 'Unavailable')}",
+        "Model: fine-tuned DenseNet121; multi-view mean probability aggregation",
+        "",
+        "MODEL OUTPUT (not a verified diagnosis)",
+        f"Predicted class: {record.get('predictedClass', 'Unavailable')}",
+        f"Top class score: {float(record.get('confidence', 0)) * 100:.1f}%",
+        "Class probabilities:",
+        *probability_lines,
+        "",
+        "MEASURED DIAGNOSTICS",
+        f"Cross-view agreement: {findings.get('crossViewAgreement', 'Unavailable')}",
+        f"Prediction entropy: {findings.get('predictionEntropy', 'Unavailable')}",
+        f"Confidence margin: {findings.get('confidenceMargin', 'Unavailable')}",
+        f"Image quality: {findings.get('imageQuality', 'Unavailable')}",
+        f"Uncertainty heuristic flag (not a validated OOD detector): {uncertainty_label}",
+        "",
+        "AI-GENERATED REPORT",
+        report.get("summary") or "No report summary was returned by the backend.",
+        "",
+        "GRAD-CAM LIMITATION",
+        report.get("gradcamNote") or "Grad-CAM description unavailable.",
+        "",
+    ]
+    if report.get("segmentationNote"):
+        lines.extend(["SEGMENTATION NOTE", report["segmentationNote"], ""])
+    lines.extend([
+        "REVIEW NOTE",
+        report.get("reviewRecommendation") or
+        "Qualified review is required; no clinical recommendation was generated.",
+        "",
+        "LIMITATIONS",
+        report.get("limitations") or
+        "Research prototype only. Do not use as a standalone diagnostic tool.",
+    ])
+    return "\n".join(lines)
