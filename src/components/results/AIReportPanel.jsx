@@ -61,7 +61,8 @@ export default function AIReportPanel({ analysisResult }) {
   if (!analysisResult) return null;
   const { id, predictedClass, confidence, findings = {}, report = {} } = analysisResult;
   const reportText = report.summary || 'No report summary was returned by the backend.';
-  const fullReportText = report.exportText || report.summary || 'No report export was returned by the backend.';
+  const hasCompleteExport = typeof report.exportText === 'string' && report.exportText.trim().length > 0;
+  const fullReportText = hasCompleteExport ? report.exportText : '';
 
   const handleCopy = async () => {
     try {
@@ -97,16 +98,17 @@ export default function AIReportPanel({ analysisResult }) {
         </div>
       </div>
       <div className="ai-report-actions">
-        <button onClick={handleCopy} className="ai-report-button">
+        <button onClick={handleCopy} disabled={!hasCompleteExport} title={!hasCompleteExport ? 'Complete report export is unavailable from the backend.' : undefined} className="ai-report-button">
           {copied ? <Check className="ai-report-action-icon" /> : <Copy className="ai-report-action-icon" />}
           {copied ? 'Copied' : 'Copy'}
         </button>
-        <button onClick={handleDownload} className="ai-report-button ai-report-button--primary">
+        <button onClick={handleDownload} disabled={!hasCompleteExport} title={!hasCompleteExport ? 'Complete report export is unavailable from the backend.' : undefined} className="ai-report-button ai-report-button--primary">
           <Download className="ai-report-action-icon" /> Export TXT
         </button>
       </div>
     </div>
     <Card padding="card-padding-lg" className="ai-report-content">
+      {!hasCompleteExport && <p role="status" className="ai-report-paragraph ai-report-paragraph--muted">Complete report export is unavailable. Copy and download are disabled to avoid exporting an incomplete summary.</p>}
       <div className="ai-report-summary-block">
         <div className="ai-report-section-kicker">AI report</div>
         <FormattedReport content={reportText} />
