@@ -91,6 +91,17 @@ class TestDeterministicServices(unittest.TestCase):
                 Settings(IMAGE_BLUR_VARIANCE_THRESHOLD=value)
         with self.assertRaises(ValueError):
             Settings(IMAGE_LOW_RESOLUTION_WARNING_DIMENSION=0)
+        with self.assertRaises(ValueError):
+            Settings(IMAGE_DARK_LUMINANCE_THRESHOLD=230, IMAGE_BRIGHT_LUMINANCE_THRESHOLD=220)
+        with self.assertRaises(ValueError):
+            Settings(IMAGE_BRIGHT_LUMINANCE_THRESHOLD=256)
+
+    def test_environment_threshold_defaults_are_validated(self):
+        import os
+        from unittest.mock import patch as env_patch
+        with env_patch.dict(os.environ, {"IMAGE_BLUR_VARIANCE_THRESHOLD": "nan"}):
+            with self.assertRaises(ValueError):
+                Settings()
 
     def test_quality_thresholds_are_read_from_current_settings(self):
         image = Image.effect_noise((128, 128), 100).convert("RGB")
