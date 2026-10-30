@@ -10,8 +10,6 @@ class AnalysisState(TypedDict, total=False):
     predicted_class: str
     confidence: float
     probabilities: list[dict]
-    quality: dict
-    uncertainty: dict
     findings: dict
     report: dict
     gradcam_url: str | None
