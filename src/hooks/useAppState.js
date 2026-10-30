@@ -16,13 +16,16 @@ export function useAppState() {
 
   useEffect(() => {
     let active = true;
-    const refreshHealth = async () => {
-      const [health, info] = await Promise.all([checkBackendHealth(), fetchModelInfo()]);
-      if (active) {
-        setIsBackendConnected(Boolean(health.apiOnline));
-        setIsModelReady(Boolean(health.modelReady));
-        setModelInfo(info);
-      }
+    const refreshHealth = () => {
+      checkBackendHealth().then((health) => {
+        if (active) {
+          setIsBackendConnected(Boolean(health.apiOnline));
+          setIsModelReady(Boolean(health.modelReady));
+        }
+      });
+      fetchModelInfo().then((info) => {
+        if (active) setModelInfo(info);
+      });
     };
     refreshHealth();
     const intervalId = window.setInterval(refreshHealth, 30000);
