@@ -9,10 +9,10 @@ def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
     if not isinstance(img_pil, Image.Image) or img_pil.width < 1 or img_pil.height < 1:
         raise ValueError("Image quality assessment requires a valid, non-empty image.")
 
-    img_rgb = cv2.cvtColor(np.asarray(img_pil.convert("RGB")), cv2.COLOR_RGB2BGR)
-    img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
+    img_rgb = np.asarray(img_pil.convert("RGB"))
+    img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
     laplacian = cv2.Laplacian(img_gray, cv2.CV_64F)
-    laplacian_mean, laplacian_std = cv2.meanStdDev(laplacian)
+    _, laplacian_std = cv2.meanStdDev(laplacian)
     laplacian_var = float(laplacian_std[0, 0] ** 2)
     is_sharp = laplacian_var > 60.0
     mean_values, std_values = cv2.meanStdDev(img_gray)
