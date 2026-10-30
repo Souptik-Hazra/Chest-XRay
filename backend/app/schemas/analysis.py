@@ -41,12 +41,14 @@ class ImageQualitySchema(BaseModel):
     aspectRatioStatus: str
     warnings: List[str]
     method: str
+    decisionScope: str = "pixel_and_geometry_heuristics_only"
 
 
 class ImageAssessmentSchema(BaseModel):
     agent: str
     status: str
     decision: str
+    decisionScope: str
     quality: ImageQualitySchema
     warnings: List[str]
     reason: str
