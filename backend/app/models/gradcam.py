@@ -73,21 +73,28 @@ class GradCAM:
         """
         Overlays JET colormap heatmap onto the original image.
         """
-        if original_img_np.ndim != 3 or original_img_np.shape[2] != 3:
-            raise ValueError("Expected an RGB image with shape [height, width, 3].")
-        if heatmap.ndim != 2 or heatmap.size == 0 or not np.isfinite(heatmap).all():
+        if (not isinstance(original_img_np, np.ndarray) or original_img_np.ndim != 3 or
+                original_img_np.shape[2] != 3 or original_img_np.size == 0 or
+                original_img_np.dtype != np.uint8):
+            raise ValueError("Expected a non-empty RGB uint8 image.")
+        if (not isinstance(heatmap, np.ndarray) or heatmap.ndim != 2 or
+                heatmap.size == 0 or not cv2.checkRange(heatmap.astype(np.float32))):
             raise ValueError("Expected a finite, non-empty 2D heatmap.")
-        if not 0.0 <= alpha <= 1.0:
+        if not np.isfinite(alpha) or not 0.0 <= alpha <= 1.0:
             raise ValueError("Overlay alpha must be between 0 and 1.")
-        h, w = original_img_np.shape[:2]
-        heatmap_resized = cv2.resize(heatmap, (w, h))
-        heatmap_uint8 = np.uint8(255 * np.clip(heatmap_resized, 0.0, 1.0))
 
-        colormap = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
-        colormap = cv2.cvtColor(colormap, cv2.COLOR_BGR2RGB)
+        height, width = original_img_np.shape[:2]
+        if height < 1 or width < 1:
+            raise ValueError("Original image dimensions must be non-zero.")
 
-        overlay = cv2.addWeighted(original_img_np, 1 - alpha, colormap, alpha, 0)
-        return overlay
+        heatmap_resized = cv2.resize(
+            heatmap.astype(np.float32), (width, height), interpolation=cv2.INTER_LINEAR
+        )
+        heatmap_uint8 = cv2.convertScaleAbs(np.clip(heatmap_resized, 0.0, 1.0), alpha=255)
+        heatmap_bgr = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
+        heatmap_rgb = cv2.cvtColor(heatmap_bgr, cv2.COLOR_BGR2RGB)
+
+        return cv2.addWeighted(original_img_np, 1.0 - alpha, heatmap_rgb, alpha, 0.0)
 
     def remove_hooks(self):
         for h in self.hooks:
