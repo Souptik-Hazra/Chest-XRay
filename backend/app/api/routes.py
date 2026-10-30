@@ -4,7 +4,7 @@ import threading
 import io
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Request
@@ -81,21 +81,16 @@ async def preprocessing_previews(image: UploadFile = File(...)):
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File size exceeds 20 MiB limit.")
     img = _decode_uploaded_image(contents)
-    try:
-        previews = []
-        for view_id, view_name, view_image in generate_multi_views(img):
-            buffer = io.BytesIO()
-            view_image.convert("RGB").save(buffer, format="JPEG", quality=72, optimize=True)
-            previews.append({
-                "id": view_id,
-                "name": view_name,
-                "previewUrl": "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii"),
-            })
-        return {"views": previews}
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Upload is not a valid supported image.") from exc
+    previews = []
+    for view_id, view_name, view_image in generate_multi_views(img):
+        buffer = io.BytesIO()
+        view_image.convert("RGB").save(buffer, format="JPEG", quality=72, optimize=True)
+        previews.append({
+            "id": view_id,
+            "name": view_name,
+            "previewUrl": "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii"),
+        })
+    return {"views": previews}
 
 
 @router.post("/analyze", response_model=AnalysisResponse)
@@ -111,7 +106,7 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
         raise HTTPException(status_code=413, detail="File size exceeds 20 MiB limit.")
     img = _decode_uploaded_image(contents)
 
-    analysis_id = f"CHX-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+    analysis_id = f"CHX-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
     if not _analysis_slots.acquire(blocking=False):
         raise HTTPException(
             status_code=429,
@@ -261,7 +256,7 @@ async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
     confidence = float(result["confidence"])
     confidence_level = "High" if confidence >= 0.70 else "Moderate"
     record = {
-        "id": analysis_id, "filename": filename, "timestamp": datetime.utcnow().isoformat() + "Z",
+        "id": analysis_id, "filename": filename, "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "isDemoData": False, "predictedClass": result["predicted_class"],
         "confidence": round(confidence, 4), "confidenceLevel": confidence_level,
         "probabilities": [{"label": p["label"], "value": round(p["value"], 6), "color": p["color"]}
