@@ -85,7 +85,7 @@ def _validate_probabilities(probabilities: Any, class_count: int) -> np.ndarray:
     return values
 
 
-def run_multiview_inference(img_pil: Image.Image) -> Dict[str, Any]:
+def run_multiview_inference(img_pil: Image.Image, cancel_event=None) -> Dict[str, Any]:
     """Run one classifier on deterministic input perturbations and report sensitivity."""
     views = generate_multi_views(img_pil)
     display_classes = list(model_service.display_classes)
@@ -96,8 +96,12 @@ def run_multiview_inference(img_pil: Image.Image) -> Dict[str, Any]:
     all_probs = []
 
     for view_id, view_name, view_image in views:
+        if cancel_event is not None and cancel_event.is_set():
+            raise InterruptedError("Analysis client disconnected.")
         tensor = model_service.preprocess_transform(view_image).unsqueeze(0)
         pred_idx, raw_probs = model_service.predict(tensor)
+        if cancel_event is not None and cancel_event.is_set():
+            raise InterruptedError("Analysis client disconnected.")
         probabilities = _validate_probabilities(raw_probs, len(display_classes))
         if not isinstance(pred_idx, (int, np.integer)) or not 0 <= int(pred_idx) < len(display_classes):
             raise ValueError("Model returned an invalid predicted class index.")
