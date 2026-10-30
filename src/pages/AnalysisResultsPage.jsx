@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Activity, Plus } from 'lucide-react';
 import XRayViewer from '../components/viewer/XRayViewer.jsx';
 import ImagePreparationPanel from '../components/upload/ImagePreparationPanel.jsx';
-import { PREPARATION_VIEWS } from '../data/preparationViews.js';
 import FindingsPanel from '../components/results/FindingsPanel.jsx';
 import GradCAMPanel from '../components/results/GradCAMPanel.jsx';
 import SegmentationPanel from '../components/results/SegmentationPanel.jsx';
@@ -28,13 +27,14 @@ export default function AnalysisResultsPage({ analysisResult, startNewAnalysis, 
   if (!analysisResult) return <EmptyResults message={analysisError || 'Upload a chest X-ray and run an analysis to see results.'} onNewAnalysis={startNewAnalysis} />;
   const previewUrl = analysisResult.previewUrl || filePreviewUrl;
   const selectedView = analysisResult.multiview?.find(view => view.id === selectedViewId);
+  const isOriginalView = selectedViewId === 'original';
   const activeTab = RESULT_TABS.find(tab => tab.id === activeResultTab) || RESULT_TABS[0];
   const ActivePanel = activeTab.Component;
   const panelProps = { analysisResult, previewUrl, confidence: analysisResult.confidence, gradcamUrl: analysisResult.gradcamUrl };
   return <PageLayout className="results-page">
     <div className="results-grid">
       <div className="results-viewer-column">
-        <div className="results-viewer"><XRayViewer imageUrl={selectedView?.previewUrl || previewUrl} gradcamUrl={analysisResult.gradcamUrl} title={`Case: ${analysisResult.id} • ${analysisResult.filename}`} isGradcamActive={activeResultTab === 'gradcam'} activeView={{name:selectedView?.name || 'Original PA View', originalUrl:previewUrl}} /></div>
+        <div className="results-viewer"><XRayViewer imageUrl={selectedView?.previewUrl || previewUrl} gradcamUrl={isOriginalView ? analysisResult.gradcamUrl : null} title={`Case: ${analysisResult.id} • ${analysisResult.filename}`} isGradcamActive={activeResultTab === 'gradcam' && isOriginalView} activeView={{name:selectedView?.name || 'Original PA View', originalUrl:previewUrl}} canCompare={!isOriginalView} /></div>
         <div className="results-preparation"><ImagePreparationPanel filePreviewUrl={previewUrl} isCompact selectedViewId={selectedViewId} onSelectView={setSelectedViewId} actualViews={analysisResult.multiview || []} /></div>
       </div>
       <Card padding="card-padding-none" className="results-detail-card">
