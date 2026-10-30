@@ -16,6 +16,17 @@ class TestDeterministicServices(unittest.TestCase):
         self.assertEqual(result["method"], "basic_pixel_heuristics_not_clinically_validated")
         self.assertIsInstance(result["warnings"], list)
 
+    def test_quality_reports_opencv_statistics(self):
+        image = Image.new("RGB", (128, 128), color=(120, 120, 120))
+        result = check_image_quality(image)
+        self.assertEqual(result["meanLuminance"], 120.0)
+        self.assertEqual(result["laplacianVariance"], 0.0)
+        self.assertFalse(result["isSharp"])
+
+    def test_quality_rejects_invalid_image(self):
+        with self.assertRaises(ValueError):
+            check_image_quality(None)
+
     def test_uncertainty_normalizes_probabilities(self):
         result = compute_uncertainty_metrics([1, 8, 1], "High")
         self.assertAlmostEqual(result["confidenceMargin"], 0.7, places=3)
