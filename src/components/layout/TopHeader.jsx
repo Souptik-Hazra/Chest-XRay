@@ -1,6 +1,6 @@
 import './layout.css';
 
-export default function TopHeader({ isBackendConnected = false }) {
+export default function TopHeader({ isModelReady = false }) {
   return (
     <header className="top-header">
       <div className="top-header__brand">
@@ -17,7 +17,7 @@ export default function TopHeader({ isBackendConnected = false }) {
       <div className="top-header__status">
         <span className="top-header__status-dot" />
         <span>
-          {isBackendConnected
+          {isModelReady
             ? 'DenseNet121 AI Engine: Connected'
             : 'DenseNet121 AI Engine: Unavailable'}
         </span>
