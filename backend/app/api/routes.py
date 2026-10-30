@@ -48,7 +48,7 @@ async def model_info():
     return ModelInfoResponse(
         architecture="DenseNet121 with custom 3-class classifier head",
         classes=model_service.display_classes, device=str(model_service.device),
-        checkpointPath=model_service.checkpoint_path, isLoaded=model_service.is_loaded,
+        isLoaded=model_service.is_loaded,
         loadError=model_service.load_error, metrics=BASELINE_METRICS or {}
     )
 
