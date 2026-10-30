@@ -59,8 +59,8 @@ async def health_check():
 @router.get("/model/status")
 async def model_status():
     return {"loaded": model_service.is_loaded, "device": str(model_service.device),
-            "classes": model_service.display_classes, "checkpointPath": model_service.checkpoint_path,
-            "error": model_service.load_error}
+            "classes": model_service.display_classes,
+            "error": None if model_service.is_loaded else "Model unavailable. Check server configuration and logs."}
 
 
 @router.get("/model/info", response_model=ModelInfoResponse)
@@ -69,7 +69,7 @@ async def model_info():
         architecture="DenseNet121 with custom 3-class classifier head",
         classes=model_service.display_classes, device=str(model_service.device),
         isLoaded=model_service.is_loaded,
-        loadError=model_service.load_error, metrics={}
+        loadError=None if model_service.is_loaded else "Model unavailable. Check server configuration and logs.", metrics={}
     )
 
 
@@ -81,22 +81,26 @@ async def preprocessing_previews(image: UploadFile = File(...)):
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File size exceeds 20 MiB limit.")
     img = _decode_uploaded_image(contents)
-    previews = []
-    for view_id, view_name, view_image in generate_multi_views(img):
-        buffer = io.BytesIO()
-        view_image.convert("RGB").save(buffer, format="JPEG", quality=72, optimize=True)
-        previews.append({
-            "id": view_id,
-            "name": view_name,
-            "previewUrl": "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii"),
-        })
-    return {"views": previews}
+    def build_previews():
+        previews = []
+        for view_id, view_name, view_image in generate_multi_views(img):
+            buffer = io.BytesIO()
+            view_image.convert("RGB").save(buffer, format="JPEG", quality=72, optimize=True)
+            previews.append({
+                "id": view_id,
+                "name": view_name,
+                "previewUrl": "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii"),
+            })
+        return {"views": previews}
+
+    return await run_in_threadpool(build_previews)
 
 
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_radiograph(request: Request, image: UploadFile = File(...)):
     if not model_service.is_loaded or model_service.model is None:
-        raise HTTPException(status_code=503, detail=f"DenseNet121 checkpoint is not loaded: {model_service.load_error}")
+        logger.error("Analysis requested while DenseNet121 is unavailable: %s", model_service.load_error)
+        raise HTTPException(status_code=503, detail="DenseNet121 model is unavailable. Check server configuration and logs.")
 
     filename = Path(image.filename or "radiograph").name or "radiograph"
     contents = await image.read(MAX_UPLOAD_BYTES + 1)
