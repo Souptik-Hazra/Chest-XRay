@@ -15,7 +15,6 @@ class FindingsSchema(BaseModel):
     confidenceMargin: float = 0.0
     imageQuality: str = "Good"
     oodDetected: bool = False
-    uncertaintyMethod: Optional[str] = None
     reviewNeeded: bool = False
     laplacianVariance: Optional[float] = None
     meanLuminance: Optional[float] = None

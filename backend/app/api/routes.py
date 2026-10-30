@@ -113,8 +113,6 @@ async def analyze_radiograph(image: UploadFile = File(...)):
             "reviewNeeded": uncertainty["reviewNeeded"],
             "laplacianVariance": quality["laplacianVariance"],
             "meanLuminance": quality["meanLuminance"],
-            "oodMethod": "uncertainty_heuristic_not_validated_ood_detector",
-            "uncertaintyMethod": uncertainty["method"],
         }
         return {"quality": quality, "uncertainty": uncertainty, "findings": findings}
 
@@ -162,10 +160,19 @@ async def analyze_radiograph(image: UploadFile = File(...)):
 
     graph = build_analysis_graph(inference_node, diagnostics_node, gradcam_node, report_node)
     try:
-        result = graph.invoke({"image": img})
+        def run_analysis():
+            with model_service.analysis_lock:
+                return graph.invoke({"image": img})
+
+        result = await run_in_threadpool(run_analysis)
     except Exception as exc:
         logger.exception("Analysis workflow failed for %s", analysis_id)
         raise HTTPException(status_code=500, detail="Analysis workflow failed. Check server logs for details.") from exc
+
+    segmentation = await run_in_threadpool(lesion_segmentation_service.segment, img)
+    result["report"]["segmentationNote"] = (
+        segmentation.get("limitations") or segmentation.get("message")
+    )
 
     confidence = float(result["confidence"])
     confidence_level = "High" if confidence >= 0.70 else "Moderate"
@@ -177,7 +184,7 @@ async def analyze_radiograph(image: UploadFile = File(...)):
                           for p in result["probabilities"]],
         "findings": result["findings"], "multiview": result["multiview_result"]["views"],
         "report": result["report"], "gradcamUrl": result.get("gradcam_url"),
-        "segmentation": await run_in_threadpool(lesion_segmentation_service.segment, img), "status": "completed",
+        "segmentation": segmentation, "status": "completed",
     }
     return record
 

@@ -165,14 +165,3 @@ def generate_clinical_report(
     }
 
 
-
-def segmentation_note_for_result(segmentation: Dict[str, Any]) -> str:
-    """Describe the actual optional segmentation outcome without implying clinical certainty."""
-    status = segmentation.get("status")
-    if status == "completed":
-        return "The optional opacity segmentation model returned an approximate mask. It is not a verified lesion contour or a lung-area measurement."
-    if status == "no_region_detected":
-        return "The optional opacity segmentation model returned no region above its configured threshold. This does not rule out disease."
-    if status == "disabled":
-        return "Opacity segmentation was disabled for this analysis; no mask was generated."
-    return "Opacity segmentation was unavailable for this analysis; no mask was generated."

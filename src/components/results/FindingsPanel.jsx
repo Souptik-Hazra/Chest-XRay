@@ -23,6 +23,6 @@ export default function FindingsPanel({ analysisResult }) {
       <div className="findings-metric"><span>Image Quality</span><strong className="findings-positive">{findings.imageQuality ?? 'Unavailable'}</strong></div>
       <div className="findings-metric"><span>Uncertainty Heuristic</span><strong className={findings.oodDetected?'findings-warning':'findings-default'}>{typeof findings.oodDetected==='boolean' ? (findings.oodDetected?'Flag raised':'No flag') : 'Unavailable'}</strong></div>
       <div className="findings-metric"><span>Review Status</span><strong className={findings.reviewNeeded?'findings-warning':'findings-default'}>{typeof findings.reviewNeeded==='boolean' ? (findings.reviewNeeded?'Review suggested':'No heuristic flag') : 'Unavailable'}</strong></div>
-    <p className="findings-muted">Heuristic only; not a validated out-of-distribution detector.</p></div></section>
+    </div></section>
   </div>;
 }
