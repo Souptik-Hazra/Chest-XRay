@@ -121,6 +121,26 @@ class TestDeterministicServices(unittest.TestCase):
                 if value is not None:
                     os.environ[key] = value
 
+    def test_analysis_response_schema_accepts_assessment_and_review_warnings(self):
+        image = Image.new("RGB", (128, 128), color=(120, 120, 120))
+        assessment = assess_image(image)
+        payload = {
+            "id": "test-case", "filename": "cxr.png", "timestamp": "2026-10-31T10:00:00Z",
+            "predictedClass": "Normal", "confidence": 0.8, "confidenceLevel": "Moderate",
+            "probabilities": [{"label": "Normal", "value": 0.8}],
+            "findings": {
+                "imageQualityWarnings": assessment["warnings"],
+                "imageAssessmentDecision": assessment["decision"],
+                "reviewNeeded": assessment["decision"] == "REVIEW",
+            },
+            "imageAssessment": assessment,
+            "report": {"summary": "Research output; not a diagnosis."},
+        }
+        parsed = AnalysisResponse.model_validate(payload)
+        self.assertEqual(parsed.imageAssessment.decision, "REVIEW")
+        self.assertTrue(parsed.findings.imageQualityWarnings)
+        self.assertTrue(parsed.findings.reviewNeeded)
+
     def test_report_source_metadata_is_preserved_by_schema(self):
         report = ReportSchema(summary="Test summary", reportSource="gemini", reportModel="configured-model")
         data = report.model_dump()
