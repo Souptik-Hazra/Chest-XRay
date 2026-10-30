@@ -187,9 +187,7 @@ class TestAnalyzeEndpoint(unittest.TestCase):
             "reportSource": "deterministic_grounded",
         }
         segmentation = {"status": "disabled", "message": "Segmentation disabled"}
-        with patch.object(routes, "run_multiview_inference", return_value=multiview) as inference, \\
-             patch.object(routes, "generate_clinical_report", return_value=report), \\
-             patch.object(routes.lesion_segmentation_service, "segment", return_value=segmentation) as segment:
+        with patch.object(routes, "run_multiview_inference", return_value=multiview) as inference, patch.object(routes, "generate_clinical_report", return_value=report), patch.object(routes.lesion_segmentation_service, "segment", return_value=segmentation) as segment:
             response = self.client.post(
                 "/analyze", files={"image": ("review.png", self._png_bytes(), "image/png")}
             )
