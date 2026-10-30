@@ -6,7 +6,6 @@ class ProbabilityItem(BaseModel):
     label: str
     value: float
     color: Optional[str] = None
-    variance: Optional[float] = None
 
 
 class FindingsSchema(BaseModel):
