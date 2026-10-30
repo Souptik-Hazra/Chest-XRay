@@ -52,6 +52,21 @@ class TestGradCAM(unittest.TestCase):
         with self.assertRaises(ValueError):
             GradCAM.overlay_heatmap(np.zeros((10, 10)), np.zeros((4, 4)))
 
+    def test_overlay_uses_rgb_uint8_and_preserves_zero_alpha(self):
+        image = np.full((12, 16, 3), 80, dtype=np.uint8)
+        heatmap = np.linspace(0, 1, 49, dtype=np.float32).reshape(7, 7)
+        overlay = GradCAM.overlay_heatmap(image, heatmap, alpha=0.0)
+        self.assertEqual(overlay.shape, image.shape)
+        self.assertEqual(overlay.dtype, np.uint8)
+        np.testing.assert_array_equal(overlay, image)
+
+    def test_overlay_rejects_non_uint8_original_image(self):
+        with self.assertRaises(ValueError):
+            GradCAM.overlay_heatmap(
+                np.zeros((10, 10, 3), dtype=np.float32),
+                np.zeros((4, 4), dtype=np.float32),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
