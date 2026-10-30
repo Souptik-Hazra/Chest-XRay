@@ -20,7 +20,8 @@ def generate_multi_views(img_pil: Image.Image) -> List[Tuple[str, str, Image.Ima
     resized = cv2.resize(resized, (width, height), interpolation=cv2.INTER_LINEAR)
     views.append(("resized", "Resize Sensitivity", Image.fromarray(cv2.cvtColor(resized, cv2.COLOR_BGR2RGB))))
 
-    contrast = cv2.convertScaleAbs(image, alpha=1.35, beta=0)
+    gray_mean = cv2.mean(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY))[0]
+    contrast = cv2.addWeighted(image, 1.35, np.full_like(image, gray_mean), -0.35, 0)
     views.append(("contrast", "Contrast Sensitivity", Image.fromarray(cv2.cvtColor(contrast, cv2.COLOR_BGR2RGB))))
 
     crop_width = max(1, int(width * 0.88))
