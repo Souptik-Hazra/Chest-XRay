@@ -3,13 +3,15 @@ import numpy as np
 from PIL import Image
 from typing import Any, Dict, List
 
+from ..core.config import settings
 
-# These are screening heuristics, not validated radiology quality thresholds.
-MIN_IMAGE_DIMENSION = 64
-BLUR_VARIANCE_THRESHOLD = 60.0
-DARK_LUMINANCE_THRESHOLD = 35.0
-BRIGHT_LUMINANCE_THRESHOLD = 220.0
-LOW_CONTRAST_STD_THRESHOLD = 25.0
+
+# These are configurable screening heuristics, not validated radiology thresholds.
+BLUR_VARIANCE_THRESHOLD = settings.IMAGE_BLUR_VARIANCE_THRESHOLD
+DARK_LUMINANCE_THRESHOLD = settings.IMAGE_DARK_LUMINANCE_THRESHOLD
+BRIGHT_LUMINANCE_THRESHOLD = settings.IMAGE_BRIGHT_LUMINANCE_THRESHOLD
+LOW_CONTRAST_STD_THRESHOLD = settings.IMAGE_LOW_CONTRAST_STD_THRESHOLD
+LOW_RESOLUTION_WARNING_DIMENSION = settings.IMAGE_LOW_RESOLUTION_WARNING_DIMENSION
 
 
 def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
@@ -31,20 +33,18 @@ def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
     is_sharp = laplacian_var > BLUR_VARIANCE_THRESHOLD
     if mean_lum < DARK_LUMINANCE_THRESHOLD:
         brightness_status = "dark"
-        exposure = "Dark intensity"
     elif mean_lum > BRIGHT_LUMINANCE_THRESHOLD:
         brightness_status = "bright"
-        exposure = "Bright intensity"
     else:
         brightness_status = "pass"
-        exposure = "Intensity range not flagged"
 
     contrast_status = "low" if std_lum < LOW_CONTRAST_STD_THRESHOLD else "pass"
-    if contrast_status == "low":
-        exposure = "Low intensity contrast"
-
     aspect_ratio = float(width / height)
-    dimensions_status = "pass" if min(width, height) >= MIN_IMAGE_DIMENSION else "too_small"
+    dimensions_status = (
+        "low_resolution_warning"
+        if min(width, height) < LOW_RESOLUTION_WARNING_DIMENSION
+        else "pass"
+    )
     aspect_ratio_status = "review" if aspect_ratio < 0.4 or aspect_ratio > 2.5 else "pass"
 
     warnings = []
@@ -56,8 +56,8 @@ def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
         warnings.append("Low grayscale intensity contrast heuristic.")
     if dimensions_status != "pass":
         warnings.append(
-            f"Image dimensions {width}x{height} are below the minimum "
-            f"{MIN_IMAGE_DIMENSION}-pixel screening threshold."
+            f"Image dimensions {width}x{height} are below the "
+            f"{LOW_RESOLUTION_WARNING_DIMENSION}-pixel low-resolution warning threshold."
         )
     if aspect_ratio_status == "review":
         warnings.append("Unusual image aspect ratio; visually inspect positioning and cropping.")
@@ -71,7 +71,8 @@ def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
         "brightnessStatus": brightness_status,
         "contrastStd": round(std_lum, 1),
         "contrastStatus": contrast_status,
-        "exposureStatus": exposure,
+        # Kept as a compatibility field; it describes brightness only.
+        "exposureStatus": brightness_status,
         "width": width,
         "height": height,
         "aspectRatio": round(aspect_ratio, 3),
@@ -79,6 +80,7 @@ def check_image_quality(img_pil: Image.Image) -> Dict[str, Any]:
         "aspectRatioStatus": aspect_ratio_status,
         "warnings": warnings,
         "method": "basic_pixel_and_geometry_heuristics_not_clinically_validated",
+        "decisionScope": "pixel_and_geometry_heuristics_only",
     }
 
 
