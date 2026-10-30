@@ -6,7 +6,6 @@ from langgraph.graph import StateGraph, START, END
 class AnalysisState(TypedDict, total=False):
     image: Any
     image_assessment: dict
-    assessment_decision: str
     multiview_result: dict
     predicted_class: str
     confidence: float
@@ -20,15 +19,11 @@ class AnalysisState(TypedDict, total=False):
     gradcam_available: bool
 
 
-def _route_after_assessment(state: AnalysisState) -> str:
-    """Only technically unusable images are blocked; flagged images can proceed."""
-    return "stop" if state.get("assessment_decision") == "REJECT" else "continue"
-
 
 def build_analysis_graph(
     image_assessment_node, inference_node, diagnostics_node, gradcam_node, report_node
 ):
-    """Assess image suitability before inference, then run diagnostics and Grad-CAM."""
+    """Run advisory image screening before inference, then diagnostics and Grad-CAM."""
     graph = StateGraph(AnalysisState)
     graph.add_node("image_assessment", image_assessment_node)
     graph.add_node("inference", inference_node)
@@ -37,11 +32,8 @@ def build_analysis_graph(
     graph.add_node("report", report_node)
 
     graph.add_edge(START, "image_assessment")
-    graph.add_conditional_edges(
-        "image_assessment",
-        _route_after_assessment,
-        {"continue": "inference", "stop": END},
-    )
+    # Pixel/geometry checks are advisory only; both ACCEPT and REVIEW proceed.
+    graph.add_edge("image_assessment", "inference")
     graph.add_edge("inference", "diagnostics")
     graph.add_edge("inference", "gradcam")
     graph.add_edge(["diagnostics", "gradcam"], "report")
